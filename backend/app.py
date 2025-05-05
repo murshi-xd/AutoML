@@ -21,6 +21,9 @@ def health():
 from routes.pipeline import pipeline_bp
 app.register_blueprint(pipeline_bp)
 
+from routes.upload import upload_bp
+app.register_blueprint(upload_bp)
+
 # Debug startup message
 print("✅ Flask server started on http://localhost:5004")
 
