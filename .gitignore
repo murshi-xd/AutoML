@@ -1,0 +1,41 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+env/
+automl/
+
+# VSCode settings
+.vscode/
+
+# OS files
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment/config files
+.env
+*.env
+
+# ZenML local metadata
+.zen/
+
+# MLflow logs and models
+backend/core/mlruns/
+
+# Uploaded files
+backend/uploads/
+
+# Extracted/Raw data
+backend/core/data/
+backend/core/extracted_data/
+backend/extracted_data/
+
+# Logs / Temp files
+*.log
+*.tmp
+*.bak
