@@ -8,45 +8,73 @@ from steps.outlier_detection_step import outlier_detection_step
 from zenml import Model, pipeline, step
 
 
+
 @pipeline(
     model=Model(
         # The name uniquely identifies this model
-        name="prices_predictor"
+        name="AutoML"
     ),
 )
-def ml_pipeline():
-    """Define an end-to-end machine learning pipeline."""
+# def ml_pipeline():
+#     """Define an end-to-end machine learning pipeline."""
 
-    # Data Ingestion Step
-    raw_data = data_ingestion_step(
-        file_path="/Users/ayushsingh/Desktop/end-to-end-production-grade-projects/prices-predictor-system/data/archive.zip"
-    )
+#     # Data Ingestion Step
+#     raw_data = data_ingestion_step(
+#         file_path="/Users/ayushsingh/Desktop/end-to-end-production-grade-projects/prices-predictor-system/data/archive.zip"
+#     )
 
-    # Handling Missing Values Step
+#     # Handling Missing Values Step
+#     filled_data = handle_missing_values_step(raw_data)
+
+#     # Feature Engineering Step
+#     engineered_data = feature_engineering_step(
+#         filled_data, strategy="log", features=["Gr Liv Area", "SalePrice"]
+#     )
+
+#     # Outlier Detection Step
+#     clean_data = outlier_detection_step(engineered_data, column_name="SalePrice")
+
+#     # Data Splitting Step
+#     X_train, X_test, y_train, y_test = data_splitter_step(clean_data, target_column="SalePrice")
+
+#     # Model Building Step
+#     model = model_building_step(X_train=X_train, y_train=y_train)
+
+#     # Model Evaluation Step
+#     evaluation_metrics, mse = model_evaluator_step(
+#         trained_model=model, X_test=X_test, y_test=y_test
+#     )
+
+#     return model
+
+def ml_pipeline(
+    file_path: str,
+    feature_strategy: str,
+    feature_columns: list,
+    outlier_column: str,
+    target_column: str
+):
+    
+    raw_data = data_ingestion_step(file_path=file_path) 
+    
     filled_data = handle_missing_values_step(raw_data)
 
-    # Feature Engineering Step
-    engineered_data = feature_engineering_step(
-        filled_data, strategy="log", features=["Gr Liv Area", "SalePrice"]
-    )
+    engineered_data = feature_engineering_step(filled_data, strategy=feature_strategy, features=feature_columns)
 
-    # Outlier Detection Step
-    clean_data = outlier_detection_step(engineered_data, column_name="SalePrice")
+    clean_data = outlier_detection_step(engineered_data, column_name=outlier_column)
 
-    # Data Splitting Step
-    X_train, X_test, y_train, y_test = data_splitter_step(clean_data, target_column="SalePrice")
+    X_train, X_test, y_train, y_test = data_splitter_step(clean_data, target_column=target_column)
 
-    # Model Building Step
     model = model_building_step(X_train=X_train, y_train=y_train)
 
-    # Model Evaluation Step
-    evaluation_metrics, mse = model_evaluator_step(
-        trained_model=model, X_test=X_test, y_test=y_test
-    )
+    evaluation_metrics, mse = model_evaluator_step(trained_model=model, X_test=X_test, y_test=y_test)
 
     return model
+
 
 
 if __name__ == "__main__":
     # Running the pipeline
     run = ml_pipeline()
+
+

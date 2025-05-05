@@ -95,3 +95,131 @@ setup kernal for the environment and use it on vscode kernal for eda.ipynb
 run : python -m ipykernel install --user --name=nycenv --display-name "NYCEnv"
 
 
+
+if you have issues with the zenml stack active mlflow tracking  ;
+🛠️ What's the Problem?
+You’ve already:
+
+Registered mlflow_tracker
+
+Registered mlflow as a model deployer
+
+But your active stack (default) doesn't use them yet.
+
+So, when you run:
+
+python
+Copy
+Edit
+Client().active_stack.experiment_tracker
+…it returns None, because the stack has no experiment tracker set.
+
+✅ Step-by-Step Fix
+✅ 1. Check Existing Components
+Run:
+
+bash
+Copy
+Edit
+zenml experiment-tracker list
+zenml model-deployer list
+You should see:
+
+mlflow_tracker (experiment tracker)
+
+mlflow (model deployer)
+
+If not, let me know and we’ll register again.
+
+✅ 2. Register a New Complete Stack (or Overwrite)
+Since your default stack doesn't include experiment tracker/model deployer, either:
+
+Option A: Create a new one (recommended)
+bash
+Copy
+Edit
+zenml stack register local-mlflow-stack \
+  --orchestrator=default \
+  --artifact-store=default \
+  --experiment-tracker=mlflow_tracker \
+  --model-deployer=mlflow
+Then activate it:
+
+bash
+Copy
+Edit
+zenml stack set local-mlflow-stack
+✅ 3. Confirm Stack Is Correct
+Run:
+
+bash
+Copy
+Edit
+zenml stack describe
+You should now see:
+
+cpp
+Copy
+Edit
+┃ COMPONENT_TYPE     │ COMPONENT_NAME     ┃
+┃ ORCHESTRATOR       │ default            ┃
+┃ ARTIFACT_STORE     │ default            ┃
+┃ EXPERIMENT_TRACKER │ mlflow_tracker     ┃
+┃ MODEL_DEPLOYER     │ mlflow             ┃
+✅ 4. Restart Your Backend App
+Now that the stack is complete, go back to your Flask app and rerun:
+
+bash
+Copy
+Edit
+python app.py
+Now your pipeline should no longer raise this:
+
+pgsql
+Copy
+Edit
+AttributeError: 'NoneType' object has no attribute 'name'
+
+
+if the port is already in use:
+
+Option 1: Kill the process on port 5004
+Run this command to find the PID (process ID):
+
+bash
+Copy
+Edit
+lsof -i :5004
+It will show something like:
+
+graphql
+Copy
+Edit
+COMMAND   PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+python3  12345 murshid   3u  IPv4 0x.....      0t0  TCP localhost:5004 (LISTEN)
+Kill that process:
+
+bash
+Copy
+Edit
+kill -9 12345
+
+
+postman :
+http://localhost:5004/run_pipeline
+{
+  "file_path": "/Users/muhammedmurshid/Documents/Projects/AutoML/AutoML/backend/core/data/archive.zip",
+  "feature_strategy": "log",
+  "feature_columns": ["Gr Liv Area", "SalePrice"],
+  "outlier_column": "SalePrice",
+  "target_column": "SalePrice"
+}
+
+returns:
+{
+  "file_path": "/Users/muhammedmurshid/Documents/Projects/AutoML/AutoML/backend/core/data/archive.zip",
+  "feature_strategy": "log",
+  "feature_columns": ["Gr Liv Area", "SalePrice"],
+  "outlier_column": "SalePrice",
+  "target_column": "SalePrice"
+}
