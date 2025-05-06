@@ -24,6 +24,19 @@ app.register_blueprint(pipeline_bp)
 from routes.upload import upload_bp
 app.register_blueprint(upload_bp)
 
+from routes.eda import eda_bp
+app.register_blueprint(eda_bp)
+
+from routes.config import config_bp
+app.register_blueprint(config_bp)
+
+from routes.dashboard import dashboard_bp
+app.register_blueprint(dashboard_bp)
+
+from routes.model import model_bp
+app.register_blueprint(model_bp)
+
+
 # Debug startup message
 print("✅ Flask server started on http://localhost:5004")
 
