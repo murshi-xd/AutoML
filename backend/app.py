@@ -28,7 +28,10 @@ app.register_blueprint(pipeline_bp)
 from routes.upload import upload_bp
 app.register_blueprint(upload_bp)
 
-from routes.eda import eda_bp
+from routes.dataset import dataset_bp
+app.register_blueprint(dataset_bp)
+
+from routes.eda_routes import eda_bp
 app.register_blueprint(eda_bp)
 
 from routes.config import config_bp

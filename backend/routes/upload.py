@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 upload_bp = Blueprint("upload", __name__)
 
 # Set the upload folder relative to the backend directory
-UPLOAD_FOLDER = os.path.abspath(os.path.join(os.getcwd(), "backend", "uploads"))
+UPLOAD_FOLDER = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Supported file extensions
@@ -23,13 +23,18 @@ def is_allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in [ext[1:] for ext in ALLOWED_EXTENSIONS]
 
 
-def save_file(file, user_id):
+def save_file(file, user_id, custom_name=None):
     """Save the uploaded file to the user directory."""
     try:
         # Generate a unique file ID
         file_id = str(uuid.uuid4())
         filename = secure_filename(file.filename)
         file_extension = os.path.splitext(filename)[1].lower()
+
+        # Use custom name if provided
+        if custom_name:
+            # Ensure the custom name doesn't include the extension
+            filename = secure_filename(custom_name) + file_extension
 
         # Validate file extension
         if not is_allowed_file(filename):
@@ -75,7 +80,7 @@ def generate_eda(file_id, user_id, filename, file_path, df):
         raise e
 
 
-def store_metadata(file_id, user_id, filename, file_path):
+def store_metadata(file_id, user_id, filename, file_path, custom_name=None):
     """Store file metadata in MongoDB."""
     try:
         files_collection = Database.get_collection("files")
@@ -83,6 +88,7 @@ def store_metadata(file_id, user_id, filename, file_path):
             "file_id": file_id,
             "user_id": user_id,
             "filename": filename,
+            "custom_name": custom_name or filename,
             "file_path": file_path,
             "status": "processed",
             "uploaded_at": datetime.utcnow().isoformat()
@@ -94,19 +100,37 @@ def store_metadata(file_id, user_id, filename, file_path):
         raise e
 
 
-def store_eda(file_id, user_id, eda):
-    """Store EDA results in MongoDB."""
+def store_dataset(file_id, user_id, eda, df, custom_name=None):
+    """Store dataset metadata and save the processed CSV."""
     try:
-        eda_results_collection = Database.get_collection("eda_results")
-        eda_results_collection.insert_one({
+        # Create dataset ID
+        dataset_id = str(uuid.uuid4())
+        
+        # Prepare dataset directory
+        processed_dir = os.path.join(UPLOAD_FOLDER, user_id, "datasets")
+        os.makedirs(processed_dir, exist_ok=True)
+
+        # Save the processed CSV
+        processed_file_path = os.path.join(processed_dir, f"{dataset_id}_{custom_name or eda['filename']}.csv")
+        df.to_csv(processed_file_path, index=False)
+        print(f"✅ Processed data saved at: {processed_file_path}")
+
+        # Store dataset metadata
+        datasets_collection = Database.get_collection("datasets")
+        datasets_collection.insert_one({
+            "dataset_id": dataset_id,
             "file_id": file_id,
             "user_id": user_id,
+            "custom_name": custom_name or eda["filename"],
+            "processed_file_path": processed_file_path,
             "eda": eda,
+            "uploaded_at": datetime.utcnow().isoformat()
         })
-        print(f"✅ EDA results stored in MongoDB for file ID: {file_id}")
+
+        print(f"✅ Dataset metadata stored in MongoDB for dataset ID: {dataset_id}")
 
     except Exception as e:
-        print(f"❌ Failed to store EDA results: {str(e)}")
+        print(f"❌ Failed to store dataset metadata: {str(e)}")
         raise e
 
 
@@ -121,8 +145,11 @@ def upload_file():
         # Get or generate user ID
         user_id = request.form.get('user_id', 'default_user')
         
+        # Get the custom file name (optional)
+        custom_name = request.form.get('custom_name', None)
+
         # Save the file
-        file_id, filename, save_path, file_extension = save_file(file, user_id)
+        file_id, filename, save_path, file_extension = save_file(file, user_id, custom_name)
 
         # Ingest the data
         data_ingestor = DataIngestorFactory.get_data_ingestor(file_extension)
@@ -132,9 +159,9 @@ def upload_file():
         # Generate EDA
         eda = generate_eda(file_id, user_id, filename, save_path, df)
 
-        # Store metadata and EDA results
-        store_metadata(file_id, user_id, filename, save_path)
-        store_eda(file_id, user_id, eda)
+        # Store metadata and dataset
+        store_metadata(file_id, user_id, filename, save_path, custom_name)
+        store_dataset(file_id, user_id, eda, df, custom_name)
 
         # Return response
         print(f"✅ File upload completed successfully for file: {filename}")
@@ -142,6 +169,7 @@ def upload_file():
             "message": "File uploaded and analyzed successfully",
             "file_id": file_id,
             "user_id": user_id,
+            "custom_name": custom_name or filename,
             "file_path": save_path,
             "eda": eda
         }), 200
