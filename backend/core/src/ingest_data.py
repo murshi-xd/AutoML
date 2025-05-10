@@ -1,8 +1,7 @@
 import os
 import zipfile
-from abc import ABC, abstractmethod
-
 import pandas as pd
+from abc import ABC, abstractmethod
 
 
 # Define an abstract class for Data Ingestor
@@ -22,11 +21,13 @@ class ZipDataIngestor(DataIngestor):
             raise ValueError("The provided file is not a .zip file.")
 
         # Extract the zip file
+        extracted_dir = "backend/extracted_data"
+        os.makedirs(extracted_dir, exist_ok=True)
         with zipfile.ZipFile(file_path, "r") as zip_ref:
-            zip_ref.extractall("extracted_data")
+            zip_ref.extractall(extracted_dir)
 
-        # Find the extracted CSV file (assuming there is one CSV file inside the zip)
-        extracted_files = os.listdir("extracted_data")
+        # Find the extracted CSV file (assuming there is only one CSV file inside the zip)
+        extracted_files = os.listdir(extracted_dir)
         csv_files = [f for f in extracted_files if f.endswith(".csv")]
 
         if len(csv_files) == 0:
@@ -35,10 +36,24 @@ class ZipDataIngestor(DataIngestor):
             raise ValueError("Multiple CSV files found. Please specify which one to use.")
 
         # Read the CSV into a DataFrame
-        csv_file_path = os.path.join("extracted_data", csv_files[0])
+        csv_file_path = os.path.join(extracted_dir, csv_files[0])
         df = pd.read_csv(csv_file_path)
 
         # Return the DataFrame
+        return df
+
+
+# Implement a concrete class for CSV Ingestion
+class CSVDataIngestor(DataIngestor):
+    def ingest(self, file_path: str) -> pd.DataFrame:
+        """Reads a .csv file and returns it as a pandas DataFrame."""
+        # Ensure the file is a .csv
+        if not file_path.endswith(".csv"):
+            raise ValueError("The provided file is not a .csv file.")
+
+        # Read the CSV into a DataFrame
+        df = pd.read_csv(file_path)
+        print(f"✅ Ingested CSV file: {file_path}")
         return df
 
 
@@ -49,25 +64,18 @@ class DataIngestorFactory:
         """Returns the appropriate DataIngestor based on file extension."""
         if file_extension == ".zip":
             return ZipDataIngestor()
+        elif file_extension == ".csv":
+            return CSVDataIngestor()
         else:
             raise ValueError(f"No ingestor available for file extension: {file_extension}")
-        
 
 
 # Example usage:
 if __name__ == "__main__":
-    # # Specify the file path
-    # file_path = "/Users/ayushsingh/Desktop/end-to-end-production-grade-projects/prices-predictor-system/data/archive.zip"
-
-    # # Determine the file extension
+    # Test the factory
+    # file_path = "/path/to/your/file.csv"
     # file_extension = os.path.splitext(file_path)[1]
-
-    # # Get the appropriate DataIngestor
     # data_ingestor = DataIngestorFactory.get_data_ingestor(file_extension)
-
-    # # Ingest the data and load it into a DataFrame
     # df = data_ingestor.ingest(file_path)
-
-    # # Now df contains the DataFrame from the extracted CSV
-    # print(df.head())  # Display the first few rows of the DataFrame
+    # print(df.head())
     pass

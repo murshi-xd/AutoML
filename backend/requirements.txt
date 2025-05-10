@@ -25,3 +25,15 @@ Flask-Cors==4.0.0
 
 # Utilities (if not already installed)
 python-dotenv==1.0.1
+
+
+# for mongodb
+pymongo==4.5.0
+dnspython==2.3.0
+
+# test 
+pytest
+werkzeug==3.0.1
+
+
+mongomock
