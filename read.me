@@ -20,6 +20,20 @@ zenml[server]
 ''''
 
 
+
+
+test:
+
+eda routes:
+export PYTHONPATH=$(pwd)/backend
+python -m unittest test_eda_routes.py
+
+upload:
+python -m unittest tests/test_upload.py
+
+
+
+
 step 1:
 
 create environment:-

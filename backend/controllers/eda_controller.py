@@ -10,6 +10,8 @@ import seaborn as sns
 from io import BytesIO
 from utils.db import Database
 
+# generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10):
+
 def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10):
     try:
         # Fetch dataset details from MongoDB
@@ -120,3 +122,5 @@ def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_f
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
