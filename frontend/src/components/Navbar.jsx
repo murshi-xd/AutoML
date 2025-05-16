@@ -8,7 +8,8 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
     const navItems = [
         { name: 'Dashboard', path: '/' },
         { name: 'Upload', path: '/upload' },
-        { name: 'EDA', path: '/eda' }
+        { name: 'EDA', path: '/eda' },
+        { name: 'Visuals', path: '/visuals' }
     ];
 
     return (

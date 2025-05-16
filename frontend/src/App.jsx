@@ -6,6 +6,7 @@ import Upload from './pages/Upload';
 import EDA from './pages/EDA';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Visuals from './pages/visualise';
 
 function App() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -25,6 +26,7 @@ function App() {
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/upload" element={<Upload />} />
                         <Route path="/eda" element={<EDA />} />
+                        <Route path="/visuals" element={<Visuals />} />
                     </Routes>
                 </div>
                 <ToastContainer position="top-right" autoClose={3000} hideProgressBar />

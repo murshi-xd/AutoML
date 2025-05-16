@@ -128,5 +128,3 @@ def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_f
 
     except Exception as e:
         return jsonify({"error in eda controller": str(e)}), 500
-
-
