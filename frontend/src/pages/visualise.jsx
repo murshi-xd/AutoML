@@ -1,6 +1,6 @@
 // src/pages/EDA.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Select, notification } from 'antd';
 import { fetchDatasets, generateEdaVisual } from '../useStore/UseEdaController';
 import { fetchEdaData } from '../useStore/useDatasetController';
@@ -15,6 +15,7 @@ const Visuals = () => {
     const [selectedColumn2, setSelectedColumn2] = useState('');
     const [plotType, setPlotType] = useState('histogram');
     const [plotUrl, setPlotUrl] = useState(null);
+    const [datasetName, setDatasetName] = useState('');
 
     useEffect(() => {
         const loadDatasets = async () => {
@@ -30,6 +31,7 @@ const Visuals = () => {
         if (edaData) {
             const columnNames = Object.keys(edaData.eda.dtypes || {});
             setColumns(columnNames);
+            setDatasetName(edaData.custom_name || "dataset");
             setSelectedColumn('');
             setSelectedColumn2('');
             setPlotUrl(null);
@@ -56,6 +58,19 @@ const Visuals = () => {
             notification.success({ message: 'Plot generated successfully!' });
         } else {
             notification.error({ message: 'Failed to generate plot.' });
+        }
+    };
+
+    const handleDownload = () => {
+        if (plotUrl) {
+            const link = document.createElement("a");
+            const filename = `${datasetName}_${plotType}.png`;
+            link.href = plotUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            notification.success({ message: `Downloaded as ${filename}` });
         }
     };
 
@@ -148,6 +163,15 @@ const Visuals = () => {
                 <div className="mt-4">
                     <h3 className="text-lg font-bold">Generated Plot:</h3>
                     <img src={plotUrl} alt="EDA Plot" className="mt-2 rounded-md shadow-lg" />
+
+                    {/* Download Button */}
+                    <Button
+                        type="primary"
+                        onClick={handleDownload}
+                        className="bg-green-500 text-white rounded-md px-4 py-2 mt-4"
+                    >
+                        Download Plot
+                    </Button>
                 </div>
             )}
         </div>
