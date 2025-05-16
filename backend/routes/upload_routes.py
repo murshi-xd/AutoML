@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from .upload_controller import save_file, generate_eda, store_metadata, store_dataset
+from controllers.upload_controller import save_file, generate_eda, store_metadata, store_dataset
 from core.src.ingest_data import DataIngestorFactory
 import os
 
@@ -41,8 +41,7 @@ def upload_file():
             "file_id": file_id,
             "user_id": user_id,
             "custom_name": custom_name or filename,
-            "file_path": save_path,
-            "eda": eda
+            "file_path": save_path
         }), 200
 
     except ValueError as ve:

@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
 from utils.db import Database
+from bson import ObjectId
 
 # generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10):
 
@@ -16,7 +17,12 @@ def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_f
     try:
         # Fetch dataset details from MongoDB
         datasets_collection = Database.get_collection("datasets")
-        dataset = datasets_collection.find_one({"dataset_id": dataset_id})
+        dataset = datasets_collection.find_one({
+            "$or": [
+                {"dataset_id": dataset_id},
+                {"_id": ObjectId(dataset_id)}
+            ]
+        })
 
         if not dataset:
             return jsonify({"error": f"Dataset with ID '{dataset_id}' not found"}), 404
@@ -121,6 +127,6 @@ def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_f
                          download_name=f"{dataset_id}_{plot_type}.{download_format}")
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error in eda controller": str(e)}), 500
 
 

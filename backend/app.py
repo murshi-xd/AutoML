@@ -25,10 +25,10 @@ Database.connect()
 from routes.pipeline import pipeline_bp
 app.register_blueprint(pipeline_bp)
 
-from backend.routes.upload_routes import upload_bp
+from routes.upload_routes import upload_bp
 app.register_blueprint(upload_bp)
 
-from routes.dataset import dataset_bp
+from routes.dataset_routes import dataset_bp
 app.register_blueprint(dataset_bp)
 
 from routes.eda_routes import eda_bp
