@@ -5,6 +5,7 @@ import os
 import json
 from flask import jsonify
 import logging
+import mlflow
 
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -39,8 +40,9 @@ class PipelineController:
             logger.info(f"User {user_id} is running pipeline on dataset {dataset_id} with params: {params}")
             logger.info(f"Using processed file path: {file_path}")
 
+
             # Run the pipeline
-            run = ml_pipeline(
+            pipeline_run = ml_pipeline(
                 file_path=file_path,
                 feature_strategy=params.get("feature_strategy"),
                 feature_columns=params.get("feature_columns"),
@@ -53,15 +55,14 @@ class PipelineController:
 
 
             # Log pipeline details
-            logger.info(f"Pipeline run completed with run_id: {run.id}")
-            logger.info(f"Pipeline status: {run.status}")
+            logger.info(f"Pipeline run completed with run_id: {pipeline_run.id}")
+            logger.info(f"Pipeline status: {pipeline_run.status}")
 
             # Return the response
             return jsonify({
                 "message": "Pipeline executed successfully.",
-                "status": "success",
-                "run_id": run.id,
-                "status": run.status
+                "run_id": pipeline_run.id,
+                "status": pipeline_run.status
             }), 200
 
         except Exception as e:
