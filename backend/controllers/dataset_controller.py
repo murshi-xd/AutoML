@@ -16,7 +16,7 @@ class DatasetController:
     def list_datasets():
         try:
             datasets_collection = Database.get_collection("datasets")
-            datasets = list(datasets_collection.find({}, {"_id": 1, "custom_name": 1, "uploaded_at": 1}))
+            datasets = list(datasets_collection.find({}, {"_id": 1, "custom_name": 1,"processed_file_path":1, "uploaded_at": 1}))
             # Convert ObjectId to string for JSON response
             for dataset in datasets:
                 dataset["_id"] = str(dataset["_id"])

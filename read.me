@@ -71,6 +71,11 @@ rm -rf .zen
 step 4 :
 
 
+zenml orchestrator register local-no-duplicate --flavor=local
+zenml stack update local-mlflow-stack --orchestrator=local-no-duplicate
+
+
+
 If you are running the run_deployment.py script, you will also need to install some integrations using ZenML:-
 
 zenml integration install mlflow -y 
