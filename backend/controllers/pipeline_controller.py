@@ -7,6 +7,8 @@ from flask import jsonify
 import logging
 import mlflow
 
+
+
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 

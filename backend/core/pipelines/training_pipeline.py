@@ -67,10 +67,10 @@ def ml_pipeline(
         "status": "running"
     }
 
-    # Set up MLflow tracking directory
-    mlflow_tracking_uri = get_user_runs_directory(file_path)
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-    logger.info(f"✅ MLflow tracking URI set to: {mlflow.get_tracking_uri()}")
+    # # Set up MLflow tracking directory
+    # mlflow_tracking_uri = get_user_runs_directory(file_path)
+    # mlflow.set_tracking_uri(mlflow_tracking_uri)
+    # logger.info(f"✅ MLflow tracking URI set to: {mlflow.get_tracking_uri()}")
 
     # Set experiment name based on user ID
     experiment_name = f"user_{user_id}_experiments"
@@ -128,11 +128,12 @@ def ml_pipeline(
             logger.info("Model evaluation step completed successfully.")
 
 
+
             # Finalize metadata
             pipeline_metadata.update({
                 "end_time": datetime.utcnow(),
                 "status": "completed",
-                "mlflow_tracking_uri" : mlflow_tracking_uri
+                "mlflow_tracking_uri" : ""
             })
             Database.get_collection("pipeline_runs").update_one(
                 {"_id": run_id},

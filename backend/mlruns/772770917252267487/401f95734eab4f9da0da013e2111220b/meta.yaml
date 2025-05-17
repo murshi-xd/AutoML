@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/muhammedmurshid/Documents/Projects/AutoML/AutoML/backend/mlruns/772770917252267487/401f95734eab4f9da0da013e2111220b/artifacts
+end_time: 1747520641768
+entry_point_name: ''
+experiment_id: '772770917252267487'
+lifecycle_stage: active
+run_id: 401f95734eab4f9da0da013e2111220b
+run_name: b0099ecb-5944-4321-827c-6d2551290bc4
+run_uuid: 401f95734eab4f9da0da013e2111220b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747520641724
+status: 3
+tags: []
+user_id: muhammedmurshid

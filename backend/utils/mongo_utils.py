@@ -34,13 +34,17 @@ def save_pipeline_metadata(run_id, user_id, dataset_id, mlflow_tracking_uri, par
     logger.info(f"✅ Pipeline metadata updated for run {run_id}")
 
 
-def save_model_artifact(model, run_id, file_path):
-    """Save model artifact and return file path."""
-    user_directory = os.path.dirname(os.path.dirname(file_path))
-    runs_directory = os.path.join(user_directory, "runs", run_id, "artifacts", "model")
-    os.makedirs(runs_directory, exist_ok=True)
 
-    model_file_path = os.path.join(runs_directory, "model.pkl")
+def save_model_artifact(model, run_id, file_path):
+    # Extract the user directory from the file path
+    user_directory = os.path.dirname(os.path.dirname(file_path))
+    run_directory = os.path.join(user_directory, "runs", run_id)
+    artifacts_directory = os.path.join(run_directory, "artifacts", "model")
+    os.makedirs(artifacts_directory, exist_ok=True)
+
+    # Save the model as model.pkl
+    model_file_path = os.path.join(artifacts_directory, "model.pkl")
     joblib.dump(model, model_file_path)
     logger.info(f"✅ Model saved at: {model_file_path}")
+
     return os.path.abspath(model_file_path)

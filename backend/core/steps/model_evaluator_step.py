@@ -45,4 +45,15 @@ def model_evaluator_step(
     if not isinstance(evaluation_metrics, dict):
         raise ValueError("Evaluation metrics must be returned as a dictionary.")
     mse = evaluation_metrics.get("Mean Squared Error", None)
+    
+
+    # mse_value = evaluation_metrics.get("Mean Squared Error")
+    # r2_value = evaluation_metrics.get("R-Squared")
+
+    # logging.info(f"MSE ----- : {mse_value}")
+    # logging.info(f"R-Squared ----- : {r2_value}")
+
     return evaluation_metrics, mse
+
+
+
