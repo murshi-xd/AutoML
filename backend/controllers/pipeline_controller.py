@@ -1,5 +1,6 @@
 from controllers.dataset_controller import DatasetController
 from core.pipelines.training_pipeline import ml_pipeline
+from zenml.integrations.mlflow.mlflow_utils import get_tracking_uri
 import os
 import json
 from flask import jsonify
@@ -39,7 +40,7 @@ class PipelineController:
             logger.info(f"Using processed file path: {file_path}")
 
             # Run the pipeline
-            pipeline_result = ml_pipeline(
+            run = ml_pipeline(
                 file_path=file_path,
                 feature_strategy=params.get("feature_strategy"),
                 feature_columns=params.get("feature_columns"),
@@ -49,21 +50,19 @@ class PipelineController:
                 dataset_id=dataset_id
             )
 
-            logger.info(f"Pipeline run completed with run_id: {pipeline_result['_id']}")
 
-            # Prepare the response
-            response = {
+
+            # Log pipeline details
+            logger.info(f"Pipeline run completed with run_id: {run.id}")
+            logger.info(f"Pipeline status: {run.status}")
+
+            # Return the response
+            return jsonify({
                 "message": "Pipeline executed successfully.",
                 "status": "success",
-                "run_id": pipeline_result['_id'],
-                "metrics": pipeline_result.get("metrics", {}),
-                "mse": pipeline_result.get("mse", None),
-                "start_time": pipeline_result.get("start_time", None),
-                "end_time": pipeline_result.get("end_time", None),
-                "status": pipeline_result.get("status", "unknown")
-            }
-
-            return jsonify(response), 200
+                "run_id": run.id,
+                "status": run.status
+            }), 200
 
         except Exception as e:
             logger.error(f"Pipeline execution failed: {e}")

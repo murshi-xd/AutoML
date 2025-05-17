@@ -12,7 +12,8 @@ from steps.model_evaluator_step import model_evaluator_step
 from steps.outlier_detection_step import outlier_detection_step
 from utils.db import Database
 import mlflow
-mlflow.autolog(disable=True)
+from zenml import step, log_metadata, get_step_context
+# mlflow.autolog(disable=True)
 
 from zenml import Model, pipeline, step
 
@@ -132,23 +133,33 @@ def ml_pipeline(
             raise RuntimeError(f"Model evaluation failed: {e}")
 
 
-        # Step 8: Finalize Metadata
-        end_time = datetime.utcnow()
-        pipeline_metadata.update({
-            "end_time": end_time,
-            # "metrics": evaluation_metrics,
-            # "mse": mse,
-            "status": "completed"
-        })
+        # # Step 8: Finalize Metadata
+        # end_time = datetime.utcnow()
+        # pipeline_metadata.update({
+        #     "end_time": end_time,
+        #     # "metrics": evaluation_metrics,
+        #     # "mse": mse,
+        #     "status": "completed"
+        # })
 
-        # Update the metadata in MongoDB
-        Database.get_collection("pipeline_runs").update_one(
-            {"_id": run_id},
-            {"$set": pipeline_metadata}
-        )
-        logger.info(f"Pipeline {run_id} completed successfully.")
+        # # Update the metadata in MongoDB
+        # Database.get_collection("pipeline_runs").update_one(
+        #     {"_id": run_id},
+        #     {"$set": pipeline_metadata}
+        # )
+        # logger.info(f"Pipeline {run_id} completed successfully.")
 
-        return pipeline_metadata
+            # Log metadata to the model
+        # log_metadata(
+        #     metadata={
+        #         "evaluation_metrics": evaluation_metrics,
+        #         "mse": mse,
+        #         "hyperparameters": model.get_params()
+        #     },
+        #     infer_model=True  # Automatically target the model associated with this step
+        # )
+        
+        return model
 
     except Exception as e:
         # Handle overall pipeline failure
@@ -164,8 +175,7 @@ def ml_pipeline(
         )
         logger.error(f"Pipeline {run_id} failed: {e}")
         raise RuntimeError(f"Pipeline execution failed: {e}") from e
+    finally:
+        return 0
 
 
-if __name__ == "__main__":
-    # Running the pipeline
-    run = ml_pipeline()

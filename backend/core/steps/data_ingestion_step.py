@@ -1,13 +1,14 @@
 import pandas as pd
 from src.ingest_data import DataIngestorFactory
 from zenml import step
+import os
 
 
 @step
 def data_ingestion_step(file_path: str) -> pd.DataFrame:
-    """Ingest data from a ZIP file using the appropriate DataIngestor."""
-    # Determine the file extension
-    file_extension = ".zip"  # Since we're dealing with ZIP files, this is hardcoded
+    """Ingest data using the appropriate DataIngestor."""
+    # Determine the file extension dynamically
+    file_extension = os.path.splitext(file_path)[1]
 
     # Get the appropriate DataIngestor
     data_ingestor = DataIngestorFactory.get_data_ingestor(file_extension)
