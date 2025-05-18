@@ -10,10 +10,10 @@ from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from zenml import ArtifactConfig, step
-from zenml.client import Client
+
 
 # Get the active experiment tracker from ZenML
-experiment_tracker = Client().active_stack.experiment_tracker
+
 from zenml import Model
 
 model = Model(
@@ -24,7 +24,7 @@ model = Model(
 )
 
 
-@step(enable_cache=False, experiment_tracker=experiment_tracker.name, model=model)
+@step(enable_cache=False, model=model)
 def model_building_step(
     X_train: pd.DataFrame, y_train: pd.Series
 ) -> Annotated[Pipeline, ArtifactConfig(name="sklearn_pipeline", is_model_artifact=True)]:
@@ -71,13 +71,10 @@ def model_building_step(
     # Define the model training pipeline
     pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("model", LinearRegression())])
 
-    # Start an MLflow run to log the model training process
-    if not mlflow.active_run():
-        mlflow.start_run()  # Start a new MLflow run if there isn't one active
 
     try:
         # Enable autologging for scikit-learn to automatically capture model metrics, parameters, and artifacts
-        mlflow.sklearn.autolog()
+
 
         logging.info("Building and training the Linear Regression model.")
         pipeline.fit(X_train, y_train)
@@ -97,8 +94,6 @@ def model_building_step(
         logging.error(f"Error during model training: {e}")
         raise e
 
-    finally:
-        # End the MLflow run
-        mlflow.end_run()
+
 
     return pipeline

@@ -13,7 +13,8 @@ from steps.outlier_detection_step import outlier_detection_step
 from utils.db import Database
 import mlflow
 from zenml import step, log_metadata, get_step_context, Model, pipeline
-
+import pandas as pd
+from mlflow.models.signature import infer_signature
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +22,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] [%(funcName)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
-
 
 def get_user_runs_directory(file_path):
     # Extract the user directory from the file path
@@ -67,83 +67,104 @@ def ml_pipeline(
         "status": "running"
     }
 
-    # # Set up MLflow tracking directory
-    # mlflow_tracking_uri = get_user_runs_directory(file_path)
-    # mlflow.set_tracking_uri(mlflow_tracking_uri)
-    # logger.info(f"✅ MLflow tracking URI set to: {mlflow.get_tracking_uri()}")
+    # Set up MLflow tracking directory
+    mlflow_tracking_uri = get_user_runs_directory(file_path)
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    logger.info(f"✅ MLflow tracking URI set to: {mlflow.get_tracking_uri()}")
+
+    
 
     # Set experiment name based on user ID
     experiment_name = f"user_{user_id}_experiments"
     mlflow.set_experiment(experiment_name)
 
+    if not mlflow.active_run():
+        mlflow.start_run()
+
     try:
+
+        mlflow.sklearn.autolog()
+        
         # Store initial pipeline metadata in MongoDB
         Database.get_collection("pipeline_runs").insert_one(pipeline_metadata)
-        logger.info(f"Pipeline {run_id} started for user {user_id}.")
+        logger.info(f"Pipeline {experiment_name} started for user {user_id}.")
 
-        with mlflow.start_run(run_name=run_id) as mlflow_run:
-            # Log basic params
-            mlflow.log_params(pipeline_metadata["params"])
+        # Log basic params
+        # mlflow.log_params({k: str(v) for k, v in pipeline_metadata["params"].items()})
 
-            # Step 1: Data Ingestion
-            raw_data = data_ingestion_step(file_path=file_path)
-            logger.info("Data ingestion completed successfully.")
+        # Step 1: Data Ingestion
+        raw_data = data_ingestion_step(file_path=file_path)
+        logger.info("Data ingestion completed successfully.")
 
-            # Step 2: Handle Missing Values
-            filled_data = handle_missing_values_step(raw_data)
-            logger.info("Missing values handled successfully.")
+        # Step 2: Handle Missing Values
+        filled_data = handle_missing_values_step(raw_data)
+        logger.info("Missing values handled successfully.")
 
-            # Step 3: Feature Engineering
-            engineered_data = feature_engineering_step(
+        # Step 3: Feature Engineering
+        engineered_data = feature_engineering_step(
                 filled_data, 
                 strategy=feature_strategy, 
                 features=feature_columns
             )
-            logger.info("Feature engineering completed successfully.")
+        logger.info("Feature engineering completed successfully.")
 
-            # Step 4: Outlier Detection
-            clean_data = outlier_detection_step(
+        # Step 4: Outlier Detection
+        clean_data = outlier_detection_step(
                 engineered_data, 
                 column_name=outlier_column
             )
-            logger.info("Outlier detection completed successfully.")
+        logger.info("Outlier detection completed successfully.")
 
-            # Step 5: Data Splitting
-            X_train, X_test, y_train, y_test = data_splitter_step(
+        # Step 5: Data Splitting
+        X_train, X_test, y_train, y_test = data_splitter_step(
                 clean_data, 
                 target_column=target_column
             )
-            logger.info("Data splitting completed successfully.")
+        logger.info("Data splitting completed successfully.")
 
-            # Step 6: Model Building
-            model = model_building_step(X_train=X_train, y_train=y_train)
-            logger.info("Model building completed successfully.")
+        # Step 6: Model Building
+        model = model_building_step(X_train=X_train, y_train=y_train)
+        logger.info("Model building completed successfully.")
 
-            # Step 7: Model Evaluation
-            evaluation_metrics, mse = model_evaluator_step(
+        # Step 7: Model Evaluation
+        evaluation_metrics, mse = model_evaluator_step(
                 trained_model=model, 
                 X_test=X_test, 
                 y_test=y_test
             )
-            logger.info("Model evaluation step completed successfully.")
+        logger.info("Model evaluation step completed successfully.")
 
+        # # Log evaluation metrics to MLflow
+        # metrics_dict = evaluation_metrics.value if hasattr(evaluation_metrics, "value") else evaluation_metrics
+        # if isinstance(metrics_dict, dict):
+        #     mlflow.log_metrics(metrics_dict)
+        # else:
+        #     logger.warning("Evaluation metrics are not a dictionary and cannot be logged to MLflow.")
+        # logger.info("Evaluation metrics logged successfully.")
 
+        # # Log the trained model to MLflow
+        # mlflow.sklearn.log_model(
+        #     sk_model=model,
+        #     artifact_path="model",
+        #     registered_model_name="automl_model"
+        # )
+        # logger.info("Model logged successfully.")
 
             # Finalize metadata
-            pipeline_metadata.update({
+        pipeline_metadata.update({
                 "end_time": datetime.utcnow(),
                 "status": "completed",
-                "mlflow_tracking_uri" : ""
+                "mlflow_tracking_uri": ""
             })
-            Database.get_collection("pipeline_runs").update_one(
+        Database.get_collection("pipeline_runs").update_one(
                 {"_id": run_id},
                 {"$set": pipeline_metadata}
             )
-            logger.info(f"Pipeline {run_id} completed successfully.")
+        logger.info(f"Pipeline {run_id} completed successfully.")
 
+        return model
 
-            return model
-
+    
     except Exception as e:
         # Handle overall pipeline failure
         pipeline_metadata.update({
@@ -158,4 +179,7 @@ def ml_pipeline(
         logger.error(f"Pipeline {run_id} failed: {e}")
         raise RuntimeError(f"Pipeline execution failed: {e}") from e
     finally:
-        mlflow.end_run()
+        # End the MLflow run
+        if mlflow.active_run():
+            mlflow.end_run()
+        logger.info("MLflow run ended.")

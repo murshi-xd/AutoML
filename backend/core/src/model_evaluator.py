@@ -117,6 +117,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+import mlflow
 
 import numpy as np
 import pandas as pd
@@ -171,6 +172,8 @@ class RegressionModelEvaluationStrategy(ModelEvaluationStrategy):
         r2 = r2_score(y_test, y_pred)
 
         metrics = {"Mean Squared Error": mse, "R-Squared": r2}
+
+        # mlflow.log_metrics(metrics)
 
         logging.info(f"Model Evaluation Metrics: {metrics}")
         return metrics
