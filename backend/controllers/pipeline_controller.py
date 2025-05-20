@@ -6,6 +6,7 @@ import json
 from flask import jsonify
 import logging
 import mlflow
+import uuid
 
 
 
@@ -42,6 +43,7 @@ class PipelineController:
             logger.info(f"User {user_id} is running pipeline on dataset {dataset_id} with params: {params}")
             logger.info(f"Using processed file path: {file_path}")
 
+            run_id=str(uuid.uuid4())
 
             # Run the pipeline
             pipeline_run = ml_pipeline(
@@ -51,19 +53,20 @@ class PipelineController:
                 outlier_column=params.get("outlier_column"),
                 target_column=params.get("target_column"),
                 user_id=user_id,
-                dataset_id=dataset_id
+                dataset_id=dataset_id,
+                run_id=run_id
             )
 
 
 
             # Log pipeline details
-            logger.info(f"Pipeline run completed with run_id: {pipeline_run.id}")
+            logger.info(f"Pipeline run completed with run_id: {run_id}")
             logger.info(f"Pipeline status: {pipeline_run.status}")
 
             # Return the response
             return jsonify({
                 "message": "Pipeline executed successfully.",
-                "run_id": pipeline_run.id,
+                "run_id": run_id,
                 "status": pipeline_run.status
             }), 200
 
