@@ -31,8 +31,12 @@ def get_user_runs_directory(file_path):
 def ml_pipeline(
     file_path: str,
     feature_strategy: str,
+    missing_value_feature_strategy: str,
     feature_columns: list,
     outlier_column: str,
+    outlier_strategy: str,
+    outlier_method: str,
+    outlier_threshold: float,
     target_column: str,
     user_id: str,
     dataset_id: str,
@@ -47,8 +51,12 @@ def ml_pipeline(
         "params": {
             "file_path": file_path,
             "feature_strategy": feature_strategy,
+            "missing_value_feature_strategy" : missing_value_feature_strategy,
             "feature_columns": feature_columns,
             "outlier_column": outlier_column,
+            "outlier_strategy": outlier_strategy,
+            "outlier_method": outlier_method,
+            "outlier_threshold": outlier_threshold,
             "target_column": target_column
         },
         "start_time": start_time,
@@ -67,7 +75,7 @@ def ml_pipeline(
         logger.info("Data ingestion completed successfully.")
 
         # Step 2: Handle Missing Values
-        filled_data = handle_missing_values_step(raw_data)
+        filled_data = handle_missing_values_step(raw_data, strategy=missing_value_feature_strategy)
         logger.info("Missing values handled successfully.")
 
         # Step 3: Feature Engineering
@@ -81,8 +89,12 @@ def ml_pipeline(
         # Step 4: Outlier Detection
         clean_data = outlier_detection_step(
             engineered_data, 
-            column_name=outlier_column
+            column_name=outlier_column,
+            strategy=outlier_strategy,  
+            method=outlier_method,    
+            threshold=outlier_threshold       
         )
+
         logger.info("Outlier detection completed successfully.")
 
         # Step 5: Data Splitting
