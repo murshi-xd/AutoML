@@ -9,7 +9,9 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
         { name: 'Dashboard', path: '/' },
         { name: 'Upload', path: '/upload' },
         { name: 'EDA', path: '/eda' },
-        { name: 'Visuals', path: '/visuals' }
+        { name: 'Visuals', path: '/visuals' },
+        { name: 'Experiments', path: '/experiments' },
+        { name: 'Run Pipeline', path: '/run-pipeline' }
     ];
 
     return (

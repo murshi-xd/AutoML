@@ -40,6 +40,15 @@ def list_runs_route(experiment_id):
 def experiment_info_route(run_id):
     return PipelineController.get_experiment_info(run_id)
 
+@pipeline_bp.route('/list_all_runs_by_user/<string:user_id>', methods=['GET'])
+def list_all_runs_by_user_route(user_id):
+    return PipelineController.list_all_runs_by_user(user_id)
+
+@pipeline_bp.route('/run_by_id/<string:run_id>', methods=['GET'])
+def run_by_id_route(run_id):
+    return PipelineController.get_run_by_id(run_id)
+
+
 
 
 # @pipeline_bp.route('/delete_experiment/<string:experiment_id>', methods=['DELETE'])

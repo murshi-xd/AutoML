@@ -7,6 +7,12 @@ import EDA from './pages/EDA';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Visuals from './pages/visualise';
+import ExperimentRunsComponent from './components/ExperimentRunsComponent';
+import RunDetail from './pages/RunDetail';
+import RunList from './pages/RunList';
+import RunPipelinePage from './pages/RunPipelinePage';
+
+
 
 function App() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -27,6 +33,10 @@ function App() {
                         <Route path="/upload" element={<Upload />} />
                         <Route path="/eda" element={<EDA />} />
                         <Route path="/visuals" element={<Visuals />} />
+                        <Route path="/experiments" element={<ExperimentRunsComponent />} />
+                        <Route path="/runs/:runId" element={<RunDetail />} />
+                        <Route path="/experiments/:experimentId" element={<RunList />} />
+                        <Route path="/run-pipeline" element={<RunPipelinePage />} />
                     </Routes>
                 </div>
                 <ToastContainer position="top-right" autoClose={3000} hideProgressBar />

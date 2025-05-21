@@ -91,15 +91,34 @@ class PipelineController:
         for run in runs:
             exp_id = run.get("mlflow_experiment_id")
             dataset_id = run.get("dataset_id")
+
             if exp_id not in experiments:
                 dataset_info = DatasetController.get_dataset_details(dataset_id)
-                custom_name = dataset_info.get("custom_name") if dataset_info else "Unknown"
+                custom_name = dataset_info.get("custom_name") if dataset_info else None
+
+                # You can pick the most recent run for this experiment
+                experiment_runs = [r for r in runs if r.get("mlflow_experiment_id") == exp_id]
+                latest_run = max(experiment_runs, key=lambda r: r.get("end_time", 0))
+
                 experiments[exp_id] = {
                     "mlflow_experiment_id": exp_id,
-                    "dataset_custom_name": custom_name
+                    "dataset_custom_name": custom_name,
+                    "end_time": latest_run.get("end_time"),
                 }
 
         return jsonify(list(experiments.values())), 200
+    
+    @staticmethod
+    def list_all_runs_by_user(user_id):
+        pipeline_runs = Database.get_collection("pipeline_runs")
+
+        # Fetch all runs for the given user ID
+        runs = list(pipeline_runs.find(
+            {"user_id": user_id},
+            {"mlflow_run_id": 1, "mlflow_experiment_id": 1, "status": 1, "end_time": 1, "_id": 0}
+        ))
+        return jsonify(runs), 200
+
 
     @staticmethod
     def list_runs(experiment_id):
@@ -108,7 +127,7 @@ class PipelineController:
         # Fetch all runs for the given experiment ID
         runs = list(pipeline_runs.find(
             {"mlflow_experiment_id": experiment_id},
-            {"mlflow_run_id": 1, "status": 1, "_id": 0}
+            {"mlflow_run_id": 1, "status": 1,"end_time" :1, "_id": 0}
         ))
         return jsonify(runs), 200
 
@@ -131,3 +150,14 @@ class PipelineController:
             "status": run.get("status")
         }
         return jsonify(info), 200
+    
+    @staticmethod
+    def get_run_by_id(run_id):
+        pipeline_runs = Database.get_collection("pipeline_runs")
+        run = pipeline_runs.find_one({"_id": run_id})  # match by MongoDB _id (UUID string)
+
+        if not run:
+            return jsonify({"error": "Run not found"}), 404
+
+        return jsonify(run), 200
+
