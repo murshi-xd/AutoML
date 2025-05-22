@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, MoreVertical, UserCircle } from 'lucide-react';
+import UserAvatar from './UserAvatar';
 
 const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
     const location = useLocation();
@@ -28,7 +29,7 @@ const Navbar = ({ sidebarOpen, setSidebarOpen }) => {
                     <button className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600">
                         <MoreVertical size={20} />
                     </button>
-                    <UserCircle size={30} className="text-gray-400" />
+                    <UserAvatar />
                 </div>
             </nav>
 

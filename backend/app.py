@@ -4,13 +4,20 @@ import os
 import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
-
+from dotenv import load_dotenv
 # Add core to sys.path for dynamic imports like from steps import ...
 sys.path.append(os.path.join(os.path.dirname(__file__), "core"))
 
+load_dotenv()
+
 # Initialize Flask
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
+app.config['SESSION_COOKIE_SECURE'] = False
+
 
 # Health check route
 @app.route("/", methods=["GET"])
@@ -43,6 +50,8 @@ app.register_blueprint(dashboard_bp)
 from routes.model import model_bp
 app.register_blueprint(model_bp)
 
+from routes.auth_routes import auth_bp
+app.register_blueprint(auth_bp)
 # Debug startup message
 print("✅ Flask server started on http://localhost:5004")
 

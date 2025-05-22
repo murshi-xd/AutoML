@@ -22,6 +22,7 @@ zenml[server]
 # Web backend
 Flask==2.3.2
 Flask-Cors==4.0.0
+authlib
 
 # Utilities (if not already installed)
 python-dotenv==1.0.1
