@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { fetchExperiments, fetchAllRunsByUser } from '../useStore/usePipelineController';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
 
 const ExperimentRunsComponent = () => {
     const [activeTab, setActiveTab] = useState('experiments');
     const [experiments, setExperiments] = useState([]);
     const [runs, setRuns] = useState([]);
-    const userId = 'test_666';
+   const { user } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
         if (activeTab === 'experiments') {
-            fetchExperiments(userId).then(setExperiments);
+            fetchExperiments(user?.id).then(setExperiments);
         } else {
-            fetchAllRunsByUser(userId).then(setRuns);
+            fetchAllRunsByUser(user?.id).then(setRuns);
         }
     }, [activeTab]);
 

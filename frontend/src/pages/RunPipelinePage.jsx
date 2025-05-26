@@ -3,8 +3,11 @@ import { fetchDatasets, fetchEdaData } from '../useStore/useDatasetController';
 import { runPipeline, fetchAllRunsByUser, fetchRunById } from '../useStore/usePipelineController';
 import { useNavigate } from 'react-router-dom';
 import { Button, Select, Spin, notification } from 'antd';
+import { useAuth } from '../context/AuthContext';
+
 
 const { Option } = Select;
+
 
 const RunPipelinePage = () => {
     const [datasets, setDatasets] = useState([]);
@@ -15,6 +18,7 @@ const RunPipelinePage = () => {
     const [completedRun, setCompletedRun] = useState(null);
     const [previousRun, setPreviousRun] = useState(null);
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const strategies = {
         missing: ['mean', 'median', 'most_frequent'],
@@ -25,7 +29,7 @@ const RunPipelinePage = () => {
 
     useEffect(() => {
         fetchDatasets().then(setDatasets);
-        fetchAllRunsByUser('test_666').then(data => {
+        fetchAllRunsByUser(user?.id).then(data => {
             if (data.length > 0) {
                 const latest = data.sort((a, b) => new Date(b.end_time) - new Date(a.end_time))[0];
                 setPreviousRun(latest);
@@ -52,7 +56,7 @@ const RunPipelinePage = () => {
     const handleRun = async () => {
         if (!selectedDataset) return;
         const payload = {
-            user_id: 'test_666',
+            user_id: user.id,
             dataset_id: selectedDataset,
             params
         };

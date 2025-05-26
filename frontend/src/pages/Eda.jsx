@@ -3,6 +3,7 @@ import { fetchDatasets, fetchEdaData } from '../useStore/useDatasetController';
 import { Table, Button } from 'antd';
 import 'antd/dist/reset.css';
 import { Input, Slider } from 'antd';
+import { useAuth } from '../context/AuthContext';
 
 const EDA = () => {
     const [datasets, setDatasets] = useState([]);
@@ -16,15 +17,19 @@ const EDA = () => {
     const [columnSearch, setColumnSearch] = useState('');
     const [columnTypeFilter, setColumnTypeFilter] = useState('');
     const [columnNameFilter, setColumnNameFilter] = useState('');
+    const { user } = useAuth();
 
 
+    
     useEffect(() => {
         const loadDatasets = async () => {
-            const data = await fetchDatasets();
-            setDatasets(data);
+            if (user?._id) {
+                const data = await fetchDatasets(user._id);
+                setDatasets(data);
+            }
         };
         loadDatasets();
-    }, []);
+    }, [user]);
 
     const handleDatasetSelect = async (datasetId) => {
         try {
@@ -70,7 +75,8 @@ const EDA = () => {
     };
 
     return (
-        <div className="space-y-4 px-4 md:px-8">
+
+        <div className="space-y-4 px-4 md:px-8 ">
             {/* Dataset List Dropdown */}
             <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-4 rounded-2xl shadow-md">
                 <h2 className="text-xl font-bold mb-4 text-gray-800">Datasets</h2>
@@ -108,9 +114,11 @@ const EDA = () => {
 
             {/* Dataset Preview */}
             {edaData && (
-                <div className="bg-gradient-to-r from-gray-50 to-white p-4 rounded-2xl shadow-md w-full">
+                <div className="bg-gradient-to-r from-gray-50 to-white p-4 rounded-2xl shadow-md w-full overflow-x-auto">
                     <h3 className="text-lg font-bold mb-2 text-gray-800">Dataset Preview (First 5 Rows)</h3>
-                    <Table dataSource={edaData.eda.head} columns={Object.keys(edaData.eda.head[0] || {}).map(key => ({ title: key, dataIndex: key, key }))} pagination={false} rowClassName={tableRowClass} scroll={{ x: true }} />
+                    <div className="overflow-x-auto w-full">
+                        <Table dataSource={edaData.eda.head} columns={Object.keys(edaData.eda.head[0] || {}).map(key => ({ title: key, dataIndex: key, key }))} pagination={false} rowClassName={tableRowClass} scroll={{ x: true }} />
+                    </div>
                 </div>
             )}
 
@@ -140,11 +148,13 @@ const EDA = () => {
                     </div>
                     
                     {/* Missing Values Table */}
-                    <div className={`${showAllMissing ? '' : 'max-h-80 overflow-y-auto'} mb-8`}>
-                        <Table dataSource={getSortedMissingValues()} columns={[
-                            { title: 'Column', dataIndex: 'column', key: 'column' },
-                            { title: 'Missing Values', dataIndex: 'missing', key: 'missing' }
-                        ]} pagination={false} rowClassName={tableRowClass} scroll={{ x: true }} />
+                    <div className={`${showAllMissing ? '' : 'max-h-80 overflow-y-auto'} overflow-x-auto mb-8`}>
+                        <div className="overflow-x-auto w-full">
+                            <Table dataSource={getSortedMissingValues()} columns={[
+                                { title: 'Column', dataIndex: 'column', key: 'column' },
+                                { title: 'Missing Values', dataIndex: 'missing', key: 'missing' }
+                            ]} pagination={false} rowClassName={tableRowClass} scroll={{ x: "true" }} />
+                        </div>
                     </div>
 
                     {getSortedMissingValues().length > 8 && (
@@ -184,22 +194,24 @@ const EDA = () => {
                     </div>
 
                     {/* Column Names and Types Table */}
-                    <div className={`${showAllColumns ? '' : 'max-h-80 overflow-y-auto'} mb-8`}>
-                        <Table
-                            dataSource={Object.entries(edaData.eda.dtypes)
-                                .filter(([name, dtype]) => 
-                                    name.toLowerCase().includes(columnNameFilter.toLowerCase()) &&
-                                    (columnTypeFilter === '' || dtype === columnTypeFilter)
-                                )
-                                .map(([name, dtype]) => ({ column: name, dtype }))}
-                            columns={[
-                                { title: 'Column', dataIndex: 'column', key: 'column' },
-                                { title: 'Data Type', dataIndex: 'dtype', key: 'dtype' }
-                            ]}
-                            pagination={false}
-                            rowClassName={tableRowClass}
-                            scroll={{ x: true }}
-                        />
+                    <div className={`${showAllColumns ? '' : 'max-h-80 overflow-y-auto'} overflow-x-auto mb-8`}>
+                       <div className="overflow-x-auto w-full">
+                            <Table
+                                dataSource={Object.entries(edaData.eda.dtypes)
+                                    .filter(([name, dtype]) => 
+                                        name.toLowerCase().includes(columnNameFilter.toLowerCase()) &&
+                                        (columnTypeFilter === '' || dtype === columnTypeFilter)
+                                    )
+                                    .map(([name, dtype]) => ({ column: name, dtype }))}
+                                columns={[
+                                    { title: 'Column', dataIndex: 'column', key: 'column' },
+                                    { title: 'Data Type', dataIndex: 'dtype', key: 'dtype' }
+                                ]}
+                                pagination={false}
+                                rowClassName={tableRowClass}
+                                scroll={{ x: true }}
+                            />
+                        </div>
                     </div>
 
                     {/* Show More / Show Less Button */}
@@ -219,15 +231,17 @@ const EDA = () => {
             {edaData && getFilteredSummaryStats().length > 0 && (
                 <div className="bg-gradient-to-r from-gray-50 to-white p-4 rounded-2xl shadow-md w-full relative">
                     <h3 className="text-lg font-bold mb-2 text-gray-800">Summary Statistics</h3>
-                    <div className={`${showAllSummary ? '' : 'max-h-80 overflow-y-auto'} mb-8`}>
-                        <Table dataSource={getFilteredSummaryStats()} columns={[
-                            { title: 'Column', dataIndex: 'column', key: 'column' },
-                            { title: 'Min', dataIndex: 'min', key: 'min' },
-                            { title: 'Max', dataIndex: 'max', key: 'max' },
-                            { title: 'Mean', dataIndex: 'mean', key: 'mean' },
-                            { title: 'Std', dataIndex: 'std', key: 'std' },
-                            { title: 'Count', dataIndex: 'count', key: 'count' }
-                        ]} pagination={false} rowClassName={tableRowClass} scroll={{ x: true }} />
+                    <div className={`${showAllSummary ? '' : 'max-h-80 overflow-y-auto'} overflow-x-auto mb-8`}>
+                        <div className="overflow-x-auto w-full">
+                            <Table dataSource={getFilteredSummaryStats()} columns={[ 
+                                { title: 'Column', dataIndex: 'column', key: 'column' },
+                                { title: 'Min', dataIndex: 'min', key: 'min' },
+                                { title: 'Max', dataIndex: 'max', key: 'max' },
+                                { title: 'Mean', dataIndex: 'mean', key: 'mean' },
+                                { title: 'Std', dataIndex: 'std', key: 'std' },
+                                { title: 'Count', dataIndex: 'count', key: 'count' }
+                            ]} pagination={false} rowClassName={tableRowClass} scroll={{ x: true }} />
+                        </div>
                     </div>
                     {getFilteredSummaryStats().length > 8 && (
                         <div className="absolute bottom-4 left-4 right-4">

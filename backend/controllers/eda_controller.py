@@ -11,31 +11,31 @@ from io import BytesIO
 from utils.db import Database
 from bson import ObjectId
 
-# generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10):
-
-def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10):
+def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10, current_user_id=None):
     try:
-        # Fetch dataset details from MongoDB
         datasets_collection = Database.get_collection("datasets")
-        dataset = datasets_collection.find_one({
+
+        # ✅ Secure query: match dataset ID AND user_id
+        query = {
             "$or": [
                 {"dataset_id": dataset_id},
                 {"_id": ObjectId(dataset_id)}
             ]
-        })
+        }
+        if current_user_id:
+            query["user_id"] = current_user_id
+
+        dataset = datasets_collection.find_one(query)
 
         if not dataset:
-            return jsonify({"error": f"Dataset with ID '{dataset_id}' not found"}), 404
-        
-        # Use the processed file path
+            return jsonify({"error": "Dataset not found or access denied"}), 404
+
         processed_file_path = dataset.get("processed_file_path")
         if not processed_file_path or not os.path.exists(processed_file_path):
             return jsonify({"error": f"Processed file for dataset '{dataset_id}' not found"}), 404
 
-        # Read the data
         df = pd.read_csv(processed_file_path)
 
-        # Set style
         sns.set_theme(style="whitegrid", palette="Blues")
         plt.figure(figsize=(12, 8) if plot_type == "heatmap" else (10, 6))
 

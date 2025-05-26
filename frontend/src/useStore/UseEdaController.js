@@ -4,9 +4,11 @@ import api from '../lib/axios';
 import { notification } from 'antd';
 
 // Fetch available datasets
-export const fetchDatasets = async () => {
+export const fetchDatasets = async (userId) => {
     try {
-        const response = await api.get('datasets');
+        const response = await api.get('datasets', {
+            params: { user_id: userId }
+        });
         return response.data.datasets || [];
     } catch (error) {
         notification.error({ message: 'Error fetching datasets' });

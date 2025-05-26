@@ -2,9 +2,12 @@ import api from '../lib/axios';
 
 export const fetchCurrentUser = async () => {
     try {
-        const res = await api.get('user', { withCredentials: true });
+        console.log("Fetching user...");
+        const res = await api.get('user');
+        console.log("User fetched:", res.data);
         return res.data;
     } catch (err) {
+        console.error("Fetch user failed", err);
         return null;
     }
 };

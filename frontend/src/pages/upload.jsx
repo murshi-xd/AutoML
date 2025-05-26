@@ -3,9 +3,12 @@ import { uploadFile } from '../useStore/useUploadController';
 import { fetchDatasets, fetchEdaData,deleteDataset } from '../useStore/useDatasetController';
 import { Table } from 'antd';
 import 'antd/dist/reset.css';
+import { useAuth } from '../context/AuthContext';
+
 
 
 const Upload = () => {
+    const { user } = useAuth();
     const [file, setFile] = useState(null);
     const [customName, setCustomName] = useState("");
     const [datasets, setDatasets] = useState([]);
@@ -13,11 +16,14 @@ const Upload = () => {
 
     useEffect(() => {
         const loadDatasets = async () => {
-            const data = await fetchDatasets();
-            setDatasets(data);
+            if (user?._id) {
+                const data = await fetchDatasets(user._id);
+                setDatasets(data);
+            }
         };
         loadDatasets();
-    }, []);
+    }, [user]);
+
 
     const handleFileChange = (event) => {
         setFile(event.target.files[0]);
@@ -27,15 +33,15 @@ const Upload = () => {
         event.preventDefault();
 
         if (!file) return alert("Please select a file to upload.");
-
-        const response = await uploadFile(file, customName, 'user_123');
+        console.log("Uploading with user ID:", user?._id);
+        
+        const response = await uploadFile(file, customName, user?._id);
         if (response && response.file_id) {
             setFile(null);
             setCustomName("");
-            const updatedDatasets = await fetchDatasets();
+            const updatedDatasets = await fetchDatasets(user?._id); // ✅ FIXED
             setDatasets(updatedDatasets);
 
-            // Automatically select the newly uploaded dataset
             const newDataset = updatedDatasets.find(dataset => dataset.file_id === response.file_id);
             if (newDataset) {
                 const eda = await fetchEdaData(newDataset._id);
@@ -59,7 +65,7 @@ const Upload = () => {
         if (confirmed) {
             const success = await deleteDataset(datasetId);
             if (success) {
-                const updatedDatasets = await fetchDatasets();
+                const updatedDatasets = await fetchDatasets(user?._id);
                 setDatasets(updatedDatasets);
                 setSelectedDataset(null);
                 setEdaData(null);
@@ -119,7 +125,16 @@ const Upload = () => {
             {selectedDataset && (
                 <div className="bg-white p-4 rounded-2xl shadow-md w-full col-span-1 md:col-span-2">
                     <h3 className="text-xl font-bold mb-4">Sample Data (First 5 Rows)</h3>
-                    <Table dataSource={selectedDataset.eda.head} columns={Object.keys(selectedDataset.eda.head[0] || {}).map(key => ({ title: key, dataIndex: key, key }))} pagination={false} scroll={{ x: true }} />
+                    <Table
+                        dataSource={selectedDataset.eda.head.map((row, index) => ({ ...row, key: index }))}
+                        columns={Object.keys(selectedDataset.eda.head[0] || {}).map(key => ({
+                            title: key,
+                            dataIndex: key,
+                            key
+                        }))}
+                        pagination={false}
+                        scroll={{ x: true }}
+                    />
                 </div>
             )}
         </div>

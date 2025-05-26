@@ -7,17 +7,25 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 # Add core to sys.path for dynamic imports like from steps import ...
 sys.path.append(os.path.join(os.path.dirname(__file__), "core"))
+from flask_session import Session
 
 load_dotenv()
 
 # Initialize Flask
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
+
+# Session config
+app.config['SESSION_TYPE'] = 'filesystem'  # 👈 NEW
+app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
 app.config['SESSION_COOKIE_SECURE'] = False
 
+Session(app)
+
+
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
 # Health check route
 @app.route("/", methods=["GET"])

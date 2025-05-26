@@ -24,9 +24,8 @@ def login_success_handler(provider, token, userinfo):
     user_id = store_user_in_db(user_data)
 
     session["user"] = {
-        **user_data,
-        "_id": user_id  # ✅ ensure this is a plain string
+        "_id": user_id,  # str from store_user_in_db
+        **user_data
     }
 
     return session["user"]
-

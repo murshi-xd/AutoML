@@ -20,17 +20,11 @@ def login_google():
 @auth_bp.route('/auth/callback/google')
 def google_callback():
     token = oauth.google.authorize_access_token()
-    userinfo = oauth.google.get("userinfo").json()  # ✅ correct fix
+    userinfo = oauth.google.get("userinfo").json()
 
-    session["user"] = {
-        "provider": "google",
-        "name": userinfo.get("name"),
-        "email": userinfo.get("email"),
-        "picture": userinfo.get("picture")
-    }
-
-    store_user_in_db(session["user"])  # ✅ ensure stored in MongoDB
+    login_success_handler("google", token, userinfo)  # ✅ use your handler
     return redirect(os.environ.get("FRONTEND_URL", "http://localhost:5173"))
+
 
 @auth_bp.route('/logout')
 def logout():
@@ -39,6 +33,7 @@ def logout():
 
 @auth_bp.route('/user')
 def get_user():
+    print("DEBUG SESSION:", dict(session))  # 👈 Add this line
     if 'user' in session:
         return jsonify(session['user'])
     return jsonify({"error": "Not logged in"}), 401

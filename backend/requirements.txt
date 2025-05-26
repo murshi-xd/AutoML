@@ -23,6 +23,8 @@ zenml[server]
 Flask==2.3.2
 Flask-Cors==4.0.0
 authlib
+flask_login
+flask_session
 
 # Utilities (if not already installed)
 python-dotenv==1.0.1

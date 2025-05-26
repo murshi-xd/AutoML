@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    useEffect(() => {
+        if (user) {
+            navigate('/'); // Redirect to dashboard after login
+        }
+    }, [user]);
+
     const handleGoogleLogin = () => {
         window.location.href = 'http://localhost:5004/login/google';
     };

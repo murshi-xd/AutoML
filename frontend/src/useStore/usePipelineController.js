@@ -2,6 +2,8 @@
 import api from '../lib/axios';
 import { toast } from 'react-toastify';
 
+
+
 export const fetchExperiments = async (userId) => {
     try {
         const res = await api.get(`list_experiments/${userId}`);
@@ -38,14 +40,13 @@ export const fetchRunInfo = async (runId) => {
 
 export const fetchAllRunsByUser = async (userId) => {
     try {
-        userId = 'test_666';
         const res = await api.get(`list_all_runs_by_user/${userId}`);
         return res.data;
     } catch (err) {
         toast.error('Failed to load all runs');
         console.error(err);
         return [];
-    }
+     }
 };
 
 export const runPipeline = async (data) => {
