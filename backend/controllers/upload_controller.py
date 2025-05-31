@@ -10,7 +10,7 @@ UPLOAD_FOLDER = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Supported file extensions
-ALLOWED_EXTENSIONS = [".zip", ".csv"]
+ALLOWED_EXTENSIONS = [".zip", ".csv", ".xlsx", ".xls"]
 
 def is_allowed_file(filename):
     """Check if the uploaded file has a supported extension."""

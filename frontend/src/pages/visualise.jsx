@@ -1,13 +1,13 @@
-// src/pages/EDA.jsx
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Select, notification } from 'antd';
 import { fetchDatasets, generateEdaVisual } from '../useStore/UseEdaController';
 import { fetchEdaData } from '../useStore/useDatasetController';
+import { useAuth } from '../context/AuthContext';
 
 const { Option } = Select;
 
 const Visuals = () => {
+    const { user } = useAuth();
     const [datasets, setDatasets] = useState([]);
     const [selectedDataset, setSelectedDataset] = useState(null);
     const [columns, setColumns] = useState([]);
@@ -19,11 +19,13 @@ const Visuals = () => {
 
     useEffect(() => {
         const loadDatasets = async () => {
-            const data = await fetchDatasets();
-            setDatasets(data);
+            if (user?._id) {
+                const data = await fetchDatasets(user._id);
+                setDatasets(data);
+            }
         };
         loadDatasets();
-    }, []);
+    }, [user]);
 
     const handleDatasetSelect = async (datasetId) => {
         setSelectedDataset(datasetId);
@@ -31,7 +33,7 @@ const Visuals = () => {
         if (edaData) {
             const columnNames = Object.keys(edaData.eda.dtypes || {});
             setColumns(columnNames);
-            setDatasetName(edaData.custom_name || "dataset");
+            setDatasetName(edaData.custom_name || 'dataset');
             setSelectedColumn('');
             setSelectedColumn2('');
             setPlotUrl(null);
@@ -63,7 +65,7 @@ const Visuals = () => {
 
     const handleDownload = () => {
         if (plotUrl) {
-            const link = document.createElement("a");
+            const link = document.createElement('a');
             const filename = `${datasetName}_${plotType}.png`;
             link.href = plotUrl;
             link.download = filename;
@@ -75,105 +77,120 @@ const Visuals = () => {
     };
 
     return (
-        <div className="p-6 space-y-4 bg-white shadow-md rounded-lg">
-            <h2 className="text-xl font-semibold">Exploratory Data Analysis (EDA)</h2>
+        <div className="px-4 md:px-8 py-6 space-y-6">
+            <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
+                <h2 className="text-2xl font-bold text-gray-800">Exploratory Data Analysis (EDA)</h2>
 
-            <Select
-                placeholder="Select Dataset"
-                style={{ width: 300 }}
-                onChange={handleDatasetSelect}
-                value={selectedDataset}
-            >
-                {datasets.map((dataset) => (
-                    <Option key={dataset._id} value={dataset._id}>
-                        {dataset.custom_name}
-                    </Option>
-                ))}
-            </Select>
-
-            <Select
-                placeholder="Select Plot Type"
-                style={{ width: 300, marginLeft: 20 }}
-                onChange={(value) => setPlotType(value)}
-                value={plotType}
-            >
-                {['histogram', 'boxplot', 'heatmap', 'missing', 'correlation_top_n', 
-                  'category_distribution', 'pairplot', 'scatter', 'violin', 'jointplot']
-                  .map((type) => (
-                    <Option key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Option>
-                ))}
-            </Select>
-
-            {['scatter', 'jointplot'].includes(plotType) && (
-                <>
+                {/* Selectors */}
+                <div className="flex flex-wrap gap-4">
                     <Select
-                        placeholder="Select Column 1"
-                        style={{ width: 300 }}
-                        onChange={(value) => setSelectedColumn(value)}
-                        value={selectedColumn}
+                        placeholder="Select Dataset"
+                        className="min-w-[250px]"
+                        onChange={handleDatasetSelect}
+                        value={selectedDataset}
                     >
-                        {columns.map((col) => (
-                            <Option key={col} value={col}>
-                                {col}
+                        {datasets.map((dataset) => (
+                            <Option key={dataset._id} value={dataset._id}>
+                                {dataset.custom_name}
                             </Option>
                         ))}
                     </Select>
 
                     <Select
-                        placeholder="Select Column 2"
-                        style={{ width: 300, marginLeft: 20 }}
-                        onChange={(value) => setSelectedColumn2(value)}
-                        value={selectedColumn2}
+                        placeholder="Select Plot Type"
+                        className="min-w-[250px]"
+                        onChange={(value) => setPlotType(value)}
+                        value={plotType}
                     >
-                        {columns.map((col) => (
-                            <Option key={col} value={col}>
-                                {col}
+                        {[
+                            'histogram', 'boxplot', 'heatmap', 'missing', 'correlation_top_n',
+                            'category_distribution', 'pairplot', 'scatter', 'violin', 'jointplot'
+                        ].map((type) => (
+                            <Option key={type} value={type}>
+                                {type.charAt(0).toUpperCase() + type.slice(1).replaceAll('_', ' ')}
                             </Option>
                         ))}
                     </Select>
-                </>
-            )}
+                </div>
 
-            {['histogram', 'boxplot', 'category_distribution', 'violin'].includes(plotType) && (
-                <Select
-                    placeholder="Select Column"
-                    style={{ width: 300 }}
-                    onChange={(value) => setSelectedColumn(value)}
-                    value={selectedColumn}
-                >
-                    {columns.map((col) => (
-                        <Option key={col} value={col}>
-                            {col}
-                        </Option>
-                    ))}
-                </Select>
-            )}
+                {/* Column Selection */}
+                {['scatter', 'jointplot'].includes(plotType) && (
+                    <div className="flex flex-wrap gap-4">
+                        <Select
+                            placeholder="Select Column 1"
+                            className="min-w-[250px]"
+                            onChange={setSelectedColumn}
+                            value={selectedColumn}
+                        >
+                            {columns.map((col) => (
+                                <Option key={col} value={col}>
+                                    {col}
+                                </Option>
+                            ))}
+                        </Select>
 
-            <Button
-                type="primary"
-                onClick={handleGeneratePlot}
-                className="bg-blue-500 text-white rounded-md px-4 py-2"
-            >
-                Generate Plot
-            </Button>
+                        <Select
+                            placeholder="Select Column 2"
+                            className="min-w-[250px]"
+                            onChange={setSelectedColumn2}
+                            value={selectedColumn2}
+                        >
+                            {columns.map((col) => (
+                                <Option key={col} value={col}>
+                                    {col}
+                                </Option>
+                            ))}
+                        </Select>
+                    </div>
+                )}
 
-            {plotUrl && (
-                <div className="mt-4">
-                    <h3 className="text-lg font-bold">Generated Plot:</h3>
-                    <img src={plotUrl} alt="EDA Plot" className="mt-2 rounded-md shadow-lg" />
+                {['histogram', 'boxplot', 'category_distribution', 'violin'].includes(plotType) && (
+                    <div>
+                        <Select
+                            placeholder="Select Column"
+                            className="min-w-[250px]"
+                            onChange={setSelectedColumn}
+                            value={selectedColumn}
+                        >
+                            {columns.map((col) => (
+                                <Option key={col} value={col}>
+                                    {col}
+                                </Option>
+                            ))}
+                        </Select>
+                    </div>
+                )}
 
-                    {/* Download Button */}
+                {/* Generate Button */}
+                <div>
                     <Button
                         type="primary"
-                        onClick={handleDownload}
-                        className="bg-green-500 text-white rounded-md px-4 py-2 mt-4"
+                        onClick={handleGeneratePlot}
+                        className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600"
                     >
-                        Download Plot
+                        Generate Plot
                     </Button>
                 </div>
-            )}
+
+                {/* Plot Output */}
+                {plotUrl && (
+                    <div className="mt-6 space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-800">Generated Plot:</h3>
+                        <img
+                            src={plotUrl}
+                            alt="EDA Plot"
+                            className="w-full max-w-4xl rounded-lg shadow-lg"
+                        />
+                        <Button
+                            type="primary"
+                            onClick={handleDownload}
+                            className="bg-green-500 text-white px-5 py-2 rounded-lg hover:bg-green-600"
+                        >
+                            Download Plot
+                        </Button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
