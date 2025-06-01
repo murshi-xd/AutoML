@@ -1,38 +1,31 @@
 # routes/eda_routes.py
 
-from flask import Blueprint, request, jsonify, session
-from controllers.eda_controller import generate_eda_visual
+from flask import Blueprint
+from flask_cors import CORS
+from controllers.eda_controller import EDAController
 
+eda_controller = EDAController()
 eda_bp = Blueprint("eda_bp", __name__)
+CORS(eda_bp, supports_credentials=True)
 
-@eda_bp.route("/eda_visual", methods=["POST"])
-def eda_visual():
-    try:
-        data = request.json
-        dataset_id = data.get("dataset_id")
-        plot_type = data.get("plot_type")
-        column = data.get("column", "")
-        column2 = data.get("column2", "")
-        download_format = str(data.get("format", "png")).lower()
-        top_n = int(data.get("top_n", 10))
+# Register EDA-related endpoints
+eda_bp.add_url_rule("/eda_visual", view_func=eda_controller.generate_plot, methods=["POST"])
 
-        if not dataset_id:
-            return jsonify({"error": "Missing 'dataset_id'"}), 400
-        if not plot_type:
-            return jsonify({"error": "Missing 'plot_type'"}), 400
-        if plot_type in ["histogram", "boxplot", "category_distribution", "violin"] and not column:
-            return jsonify({"error": f"'column' is required for plot_type '{plot_type}'"}), 400
 
-        # ✅ Ensure user is logged in
-        user = session.get("user")
-        if not user:
-            return jsonify({"error": "Not authenticated"}), 401
-        current_user_id = user.get("_id")
+eda_bp.add_url_rule(
+    "/save_plot", 
+    view_func=eda_controller.save_plot, 
+    methods=["POST"]
+)
 
-        return generate_eda_visual(
-            dataset_id, plot_type, column, column2, download_format, top_n, current_user_id
-        )
+eda_bp.add_url_rule(
+    "/get_plots/<user_id>", 
+    view_func=eda_controller.get_plots, 
+    methods=["GET"]
+)
 
-    except Exception as e:
-        print(f"❌ Error in eda_visual route: {e}")
-        return jsonify({"error": str(e)}), 500
+eda_bp.add_url_rule(
+    "/delete_plot/<plot_id>", 
+    view_func=eda_controller.delete_plot, 
+    methods=["DELETE"]
+)

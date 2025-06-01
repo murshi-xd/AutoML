@@ -1,130 +1,146 @@
 # controllers/eda_controller.py
 
-from flask import jsonify, send_file
-import pandas as pd
-import os
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import seaborn as sns
-from io import BytesIO
-from utils.db import Database
+from flask import jsonify, request, session
+from datetime import datetime
 from bson import ObjectId
+import os
+import pandas as pd
+import plotly.express as px
 
-def generate_eda_visual(dataset_id, plot_type, column="", column2="", download_format="png", top_n=10, current_user_id=None):
-    try:
-        datasets_collection = Database.get_collection("datasets")
+from utils.db import Database
 
-        # ✅ Secure query: match dataset ID AND user_id
-        query = {
-            "$or": [
-                {"dataset_id": dataset_id},
-                {"_id": ObjectId(dataset_id)}
-            ]
-        }
-        if current_user_id:
-            query["user_id"] = current_user_id
 
-        dataset = datasets_collection.find_one(query)
+class EDAController:
+    def __init__(self):
+        self.datasets_collection = Database.get_collection("datasets")
+        self.plots_collection = Database.get_collection("saved_plots")
 
+    def _get_dataset_df(self, dataset_id, user_id=None):
+        query = {"$or": [{"dataset_id": dataset_id}, {"_id": ObjectId(dataset_id)}]}
+        if user_id:
+            query["user_id"] = user_id
+
+        dataset = self.datasets_collection.find_one(query)
         if not dataset:
-            return jsonify({"error": "Dataset not found or access denied"}), 404
+            return None, "Dataset not found or access denied"
 
-        processed_file_path = dataset.get("processed_file_path")
-        if not processed_file_path or not os.path.exists(processed_file_path):
-            return jsonify({"error": f"Processed file for dataset '{dataset_id}' not found"}), 404
+        file_path = dataset.get("processed_file_path")
+        if not file_path or not os.path.exists(file_path):
+            return None, f"Processed file not found: {file_path}"
 
-        df = pd.read_csv(processed_file_path)
+        try:
+            df = pd.read_csv(file_path)
+            return df, None
+        except Exception as e:
+            return None, f"Failed to load dataset CSV: {str(e)}"
 
-        sns.set_theme(style="whitegrid", palette="Blues")
-        plt.figure(figsize=(12, 8) if plot_type == "heatmap" else (10, 6))
+    def generate_plot(self):
+        data = request.get_json()
+        session_user = session.get("user")
+        user_id = session_user.get("_id") if session_user else None
 
-        # Plot types
-        if plot_type == "histogram":
-            if column not in df.columns:
-                return jsonify({"error": f"'{column}' not found in dataset."}), 400
-            sns.histplot(df[column], kde=True, color="steelblue", edgecolor="black")
-            plt.title(f"Histogram of '{column}'", fontsize=14)
-            plt.xlabel(column)
-            plt.ylabel("Frequency")
+        dataset_id = data.get("dataset_id")
+        plot_type = data.get("plot_type")
+        column = data.get("column", "")
+        column2 = data.get("column2", "")
+        top_n = data.get("top_n", 10)
 
-        elif plot_type == "boxplot":
-            if column not in df.columns:
-                return jsonify({"error": f"'{column}' not found in dataset."}), 400
-            sns.boxplot(x=df[column], color="skyblue")
-            plt.title(f"Boxplot of '{column}'", fontsize=14)
-            plt.xlabel(column)
+        if not dataset_id or not plot_type:
+            return jsonify({"error": "Missing dataset_id or plot_type"}), 400
 
-        elif plot_type == "heatmap":
-            corr = df.corr(numeric_only=True)
-            sns.heatmap(corr, cmap="Blues", annot=True, fmt=".2f", square=True,
-                        linewidths=0.5, cbar_kws={"shrink": 0.8})
-            plt.title("Correlation Heatmap", fontsize=16)
+        df, err = self._get_dataset_df(dataset_id, user_id)
+        if err:
+            return jsonify({"error": err}), 404
 
-        elif plot_type == "missing":
-            na_counts = df.isna().sum()
-            na_counts = na_counts[na_counts > 0].sort_values(ascending=False)
-            sns.barplot(x=na_counts.values, y=na_counts.index, color="cornflowerblue", edgecolor="black")
-            plt.title("Missing Values Per Column", fontsize=14)
-            plt.xlabel("Missing Count")
-            plt.ylabel("Columns")
+        try:
+            fig = None
 
-        elif plot_type == "correlation_top_n":
-            corr = df.corr(numeric_only=True)
-            if column not in corr.columns:
-                return jsonify({"error": f"'{column}' not found in numeric columns for correlation."}), 400
-            top_corr = corr[column].abs().sort_values(ascending=False)[1:top_n + 1]
-            sns.barplot(x=top_corr.values, y=top_corr.index, color="steelblue")
-            plt.title(f"Top {top_n} Correlations with '{column}'", fontsize=14)
-            plt.xlabel("Correlation")
-            plt.ylabel("Features")
+            if plot_type == "histogram":
+                fig = px.histogram(df, x=column)
+            elif plot_type == "boxplot":
+                fig = px.box(df, y=column)
+            elif plot_type == "heatmap":
+                fig = px.imshow(df.corr(numeric_only=True))
+            elif plot_type == "missing":
+                na_series = df.isnull().sum()
+                na_series = na_series[na_series > 0]
+                fig = px.bar(
+                    x=na_series.values, 
+                    y=na_series.index, 
+                    orientation='h',
+                    labels={"x": "Missing Count", "y": "Feature"}
+                )
+            elif plot_type == "scatter":
+                fig = px.scatter(df, x=column, y=column2)
+            elif plot_type == "correlation_top_n":
+                corr = df.corr(numeric_only=True)
+                if column not in corr:
+                    return jsonify({"error": f"{column} not found in correlation matrix"}), 400
+                top_corr = corr[column].abs().sort_values(ascending=False)[1:top_n + 1]
+                fig = px.bar(
+                    x=top_corr.values, 
+                    y=top_corr.index, 
+                    orientation='h',
+                    labels={"x": "Correlation", "y": "Feature"}
+                )
+            elif plot_type == "category_distribution":
+                fig = px.histogram(df, x=column)
+            elif plot_type == "violin":
+                fig = px.violin(df, y=column)
+            else:
+                return jsonify({"error": f"Unsupported plot type: {plot_type}"}), 400
 
-        elif plot_type == "category_distribution":
-            if column not in df.columns:
-                return jsonify({"error": f"'{column}' not found in dataset."}), 400
-            value_counts = df[column].value_counts().sort_values(ascending=False)
-            sns.barplot(x=value_counts.values, y=value_counts.index, color="cornflowerblue", edgecolor="black")
-            plt.title(f"Category Distribution: '{column}'", fontsize=14)
-            plt.xlabel("Count")
-            plt.ylabel("Category")
+            fig.update_layout(title=f"{plot_type.replace('_', ' ').title()} Plot")
+            return jsonify(fig.to_plotly_json()), 200
 
-        elif plot_type == "pairplot":
-            sns.pairplot(df.select_dtypes(include=["number"]))
-            plt.title("Pairplot of Numerical Features", fontsize=16)
+        except Exception as e:
+            return jsonify({"error": f"Plot generation failed: {str(e)}"}), 500
 
-        elif plot_type == "scatter":
-            if column not in df.columns or column2 not in df.columns:
-                return jsonify({"error": f"Both '{column}' and '{column2}' must be valid columns."}), 400
-            sns.scatterplot(x=df[column], y=df[column2], color="steelblue")
-            plt.title(f"Scatter Plot of '{column}' vs '{column2}'", fontsize=14)
-            plt.xlabel(column)
-            plt.ylabel(column2)
+    def save_plot(self):
+        data = request.get_json()
+        session_user = session.get("user")
+        user_id = session_user.get("_id") if session_user else None
 
-        elif plot_type == "violin":
-            if column not in df.columns:
-                return jsonify({"error": f"'{column}' not found in dataset."}), 400
-            sns.violinplot(x=df[column], color="skyblue")
-            plt.title(f"Violin Plot of '{column}'", fontsize=14)
+        if not user_id:
+            return jsonify({"error": "User not logged in"}), 401
 
-        elif plot_type == "jointplot":
-            if column not in df.columns or column2 not in df.columns:
-                return jsonify({"error": f"Both '{column}' and '{column2}' must be valid columns."}), 400
-            sns.jointplot(x=column, y=column2, data=df, kind="scatter", color="blue", height=8)
-            plt.title(f"Jointplot of '{column}' vs '{column2}'", fontsize=16)
+        required_fields = ["dataset_id", "plot_type", "plot_json"]
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
 
-        else:
-            return jsonify({"error": f"Unsupported plot type: '{plot_type}'"}), 400
+        plot_data = {
+            "user_id": ObjectId(user_id),
+            "dataset_id": ObjectId(data["dataset_id"]),
+            "plot_type": data["plot_type"],
+            "columns": data.get("columns", []),
+            "title": data.get("title", ""),
+            "plot_json": data["plot_json"],
+            "created_at": datetime.utcnow()
+        }
 
-        # Finalize and return plot
-        plt.tight_layout()
-        buf = BytesIO()
-        plt.savefig(buf, format=download_format)
-        buf.seek(0)
-        plt.close()
+        try:
+            result = self.plots_collection.insert_one(plot_data)
+            return jsonify({"message": "Plot saved", "plot_id": str(result.inserted_id)}), 201
+        except Exception as e:
+            return jsonify({"error": f"Failed to save plot: {str(e)}"}), 500
 
-        mimetype = "application/pdf" if download_format == "pdf" else "image/png"
-        return send_file(buf, mimetype=mimetype, as_attachment=True,
-                         download_name=f"{dataset_id}_{plot_type}.{download_format}")
+    def get_plots(self, user_id):
+        try:
+            plots = list(self.plots_collection.find({"user_id": ObjectId(user_id)}).sort("created_at", -1))
+            for plot in plots:
+                plot["_id"] = str(plot["_id"])
+                plot["user_id"] = str(plot["user_id"])
+                plot["dataset_id"] = str(plot["dataset_id"])
+            return jsonify(plots), 200
+        except Exception as e:
+            return jsonify({"error": f"Failed to fetch plots: {str(e)}"}), 500
 
-    except Exception as e:
-        return jsonify({"error in eda controller": str(e)}), 500
+    def delete_plot(self, plot_id):
+        try:
+            result = self.plots_collection.delete_one({"_id": ObjectId(plot_id)})
+            if result.deleted_count == 1:
+                return jsonify({"message": "Plot deleted"}), 200
+            else:
+                return jsonify({"error": "Plot not found"}), 404
+        except Exception as e:
+            return jsonify({"error": f"Deletion failed: {str(e)}"}), 500

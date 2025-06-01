@@ -34,6 +34,7 @@ backend/uploads/
 backend/core/data/
 backend/core/extracted_data/
 backend/extracted_data/
+backend/flask_session
 
 # Logs / Temp files
 *.log

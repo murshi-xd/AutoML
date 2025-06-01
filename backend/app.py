@@ -25,7 +25,8 @@ app.config['SESSION_COOKIE_SECURE'] = False
 Session(app)
 
 
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "http://localhost:5173"}})
+
 
 # Health check route
 @app.route("/", methods=["GET"])
@@ -46,8 +47,6 @@ app.register_blueprint(upload_bp)
 from routes.dataset_routes import dataset_bp
 app.register_blueprint(dataset_bp)
 
-from routes.eda_routes import eda_bp
-app.register_blueprint(eda_bp)
 
 from routes.config import config_bp
 app.register_blueprint(config_bp)
@@ -57,6 +56,10 @@ app.register_blueprint(dashboard_bp)
 
 from routes.model import model_bp
 app.register_blueprint(model_bp)
+
+from routes.eda_routes import eda_bp
+app.register_blueprint(eda_bp)
+
 
 from routes.auth_routes import auth_bp
 app.register_blueprint(auth_bp)

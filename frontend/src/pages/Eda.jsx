@@ -102,7 +102,7 @@ const EDA = () => {
                         <li><strong>Columns:</strong> {edaData.eda.shape[1]}</li>
                         <li><strong>Total Missing Values:</strong> {Object.values(edaData.eda.missing_values).reduce((a, b) => a + b, 0)}</li>
                         <li><strong>Uploaded At:</strong> {new Date(edaData.uploaded_at).toLocaleString()}</li>
-                        <li><strong>File Name:</strong> {edaData.custom_name}</li>
+                        <li><strong>File Name:</strong> {edaData.filename}</li>
                     </ul>
                 </div>
             )}

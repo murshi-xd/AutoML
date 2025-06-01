@@ -1,27 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Select, notification } from 'antd';
-import { fetchDatasets, generateEdaVisual } from '../useStore/UseEdaController';
-import { fetchEdaData } from '../useStore/useDatasetController';
+import { Button, Select, notification, Tabs, Tooltip } from 'antd';
+import { fetchDatasets, fetchEdaData } from '../useStore/useDatasetController';
+import { generateEdaVisual, savePlot, getSavedPlots, deletePlot } from '../useStore/UseEdaController';
 import { useAuth } from '../context/AuthContext';
+import ResponsivePlot from '../components/ResponsivePlot';
+import { PulseLoader } from 'react-spinners';
 
 const { Option } = Select;
+const { TabPane } = Tabs;
 
-const Visuals = () => {
+const Visuals = ({ sidebarOpen }) => {
     const { user } = useAuth();
     const [datasets, setDatasets] = useState([]);
     const [selectedDataset, setSelectedDataset] = useState(null);
+    const [edaData, setEdaData] = useState(null);
     const [columns, setColumns] = useState([]);
     const [selectedColumn, setSelectedColumn] = useState('');
     const [selectedColumn2, setSelectedColumn2] = useState('');
     const [plotType, setPlotType] = useState('histogram');
-    const [plotUrl, setPlotUrl] = useState(null);
+    const [plotData, setPlotData] = useState(null);
     const [datasetName, setDatasetName] = useState('');
+    const [savedPlots, setSavedPlots] = useState([]);
+    const [loadingPlot, setLoadingPlot] = useState(false);
 
     useEffect(() => {
         const loadDatasets = async () => {
             if (user?._id) {
                 const data = await fetchDatasets(user._id);
-                setDatasets(data);
+                setDatasets(Array.isArray(data) ? data : []);
+                const saved = await getSavedPlots(user._id);
+                setSavedPlots(saved);
             }
         };
         loadDatasets();
@@ -29,168 +37,175 @@ const Visuals = () => {
 
     const handleDatasetSelect = async (datasetId) => {
         setSelectedDataset(datasetId);
-        const edaData = await fetchEdaData(datasetId);
-        if (edaData) {
-            const columnNames = Object.keys(edaData.eda.dtypes || {});
-            setColumns(columnNames);
-            setDatasetName(edaData.custom_name || 'dataset');
+        const eda = await fetchEdaData(datasetId);
+        if (eda && eda.eda?.dtypes) {
+            const cols = Object.keys(eda.eda.dtypes);
+            setEdaData(eda);
+            setColumns(cols);
+            setDatasetName(eda.custom_name || 'dataset');
             setSelectedColumn('');
             setSelectedColumn2('');
-            setPlotUrl(null);
+            setPlotData(null);
         } else {
-            notification.error({ message: 'Failed to load dataset details.' });
+            notification.error({ message: 'Dataset not found or failed to fetch EDA.' });
         }
     };
 
     const handleGeneratePlot = async () => {
         if (!selectedDataset || !plotType) {
-            notification.error({ message: 'Please select a dataset and plot type.' });
-            return;
+            return notification.error({ message: 'Select dataset and plot type.' });
         }
 
-        const plot = await generateEdaVisual(
+        setLoadingPlot(true);
+        const response = await generateEdaVisual(
             selectedDataset,
             plotType,
             selectedColumn,
             selectedColumn2
         );
+        setLoadingPlot(false);
 
-        if (plot) {
-            setPlotUrl(plot);
-            notification.success({ message: 'Plot generated successfully!' });
+        if (response) {
+            setPlotData(response);
+            notification.success({ message: 'Plot generated!' });
         } else {
             notification.error({ message: 'Failed to generate plot.' });
         }
     };
 
-    const handleDownload = () => {
-        if (plotUrl) {
-            const link = document.createElement('a');
-            const filename = `${datasetName}_${plotType}.png`;
-            link.href = plotUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            notification.success({ message: `Downloaded as ${filename}` });
+    const handleSavePlot = async () => {
+        if (!plotData || !user?._id) return;
+        const result = await savePlot({
+            user_id: user._id,
+            dataset_id: selectedDataset,
+            plot_type: plotType,
+            column: selectedColumn || selectedColumn2,
+            plot_data: plotData
+        });
+        if (result.success) {
+            notification.success({ message: 'Plot saved!' });
+            const saved = await getSavedPlots(user._id);
+            setSavedPlots(saved);
+        } else {
+            notification.error({ message: 'Failed to save plot.' });
         }
     };
 
     return (
-        <div className="px-4 md:px-8 py-6 space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
-                <h2 className="text-2xl font-bold text-gray-800">Exploratory Data Analysis (EDA)</h2>
-
-                {/* Selectors */}
-                <div className="flex flex-wrap gap-4">
-                    <Select
-                        placeholder="Select Dataset"
-                        className="min-w-[250px]"
-                        onChange={handleDatasetSelect}
-                        value={selectedDataset}
-                    >
-                        {datasets.map((dataset) => (
-                            <Option key={dataset._id} value={dataset._id}>
-                                {dataset.custom_name}
-                            </Option>
-                        ))}
-                    </Select>
-
-                    <Select
-                        placeholder="Select Plot Type"
-                        className="min-w-[250px]"
-                        onChange={(value) => setPlotType(value)}
-                        value={plotType}
-                    >
-                        {[
-                            'histogram', 'boxplot', 'heatmap', 'missing', 'correlation_top_n',
-                            'category_distribution', 'pairplot', 'scatter', 'violin', 'jointplot'
-                        ].map((type) => (
-                            <Option key={type} value={type}>
-                                {type.charAt(0).toUpperCase() + type.slice(1).replaceAll('_', ' ')}
-                            </Option>
-                        ))}
-                    </Select>
-                </div>
-
-                {/* Column Selection */}
-                {['scatter', 'jointplot'].includes(plotType) && (
-                    <div className="flex flex-wrap gap-4">
+        <div className="pt-24 p-6 space-y-6 bg-white shadow-md rounded-xl mx-4 md:mx-8">
+            <h2 className="text-2xl font-semibold text-gray-800">🧠 Smart EDA Workspace</h2>
+            <Tabs defaultActiveKey="1">
+                <TabPane tab="🔍 Generate Plot" key="1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Select
-                            placeholder="Select Column 1"
-                            className="min-w-[250px]"
-                            onChange={setSelectedColumn}
-                            value={selectedColumn}
+                            placeholder="Select Dataset"
+                            value={selectedDataset}
+                            onChange={handleDatasetSelect}
+                            className="w-full"
+                            showSearch
+                            optionFilterProp="children"
                         >
-                            {columns.map((col) => (
-                                <Option key={col} value={col}>
-                                    {col}
-                                </Option>
+                            {datasets.map((d) => (
+                                <Option key={d._id} value={d._id}>{d.custom_name}</Option>
                             ))}
                         </Select>
-
                         <Select
-                            placeholder="Select Column 2"
-                            className="min-w-[250px]"
-                            onChange={setSelectedColumn2}
-                            value={selectedColumn2}
+                            placeholder="Select Plot Type"
+                            value={plotType}
+                            onChange={(v) => setPlotType(v)}
+                            className="w-full"
                         >
-                            {columns.map((col) => (
-                                <Option key={col} value={col}>
-                                    {col}
-                                </Option>
+                            {[ 'histogram', 'boxplot', 'heatmap', 'missing', 'correlation_top_n', 'category_distribution', 'pairplot', 'scatter', 'violin', 'jointplot' ].map((t) => (
+                                <Option key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</Option>
                             ))}
                         </Select>
                     </div>
-                )}
 
-                {['histogram', 'boxplot', 'category_distribution', 'violin'].includes(plotType) && (
-                    <div>
-                        <Select
-                            placeholder="Select Column"
-                            className="min-w-[250px]"
-                            onChange={setSelectedColumn}
-                            value={selectedColumn}
-                        >
-                            {columns.map((col) => (
-                                <Option key={col} value={col}>
-                                    {col}
-                                </Option>
+                    {(plotType !== 'heatmap' && plotType !== 'pairplot' && plotType !== 'missing') && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            {['scatter', 'jointplot'].includes(plotType) ? (
+                                <>
+                                    <Select
+                                        showSearch
+                                        placeholder="Column 1"
+                                        value={selectedColumn}
+                                        onChange={setSelectedColumn}
+                                        className="w-full"
+                                        filterOption={(input, option) => option?.value?.toLowerCase().includes(input.toLowerCase())}
+                                    >
+                                        {columns.map((col) => (<Option key={col} value={col}>{col}</Option>))}
+                                    </Select>
+                                    <Select
+                                        showSearch
+                                        placeholder="Column 2"
+                                        value={selectedColumn2}
+                                        onChange={setSelectedColumn2}
+                                        className="w-full"
+                                        filterOption={(input, option) => option?.value?.toLowerCase().includes(input.toLowerCase())}
+                                    >
+                                        {columns.map((col) => (<Option key={col} value={col}>{col}</Option>))}
+                                    </Select>
+                                </>
+                            ) : (
+                                <Select
+                                    showSearch
+                                    placeholder="Column"
+                                    value={selectedColumn}
+                                    onChange={setSelectedColumn}
+                                    className="w-full md:col-span-2"
+                                    filterOption={(input, option) => option?.value?.toLowerCase().includes(input.toLowerCase())}
+                                >
+                                    {columns.map((col) => (<Option key={col} value={col}>{col}</Option>))}
+                                </Select>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 mt-4">
+                        <Button onClick={handleGeneratePlot} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">Generate Plot</Button>
+                        <Button onClick={handleSavePlot} className="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">Save Plot</Button>
+                    </div>
+
+                    {loadingPlot ? (
+                        <div className="flex justify-center items-center py-10">
+                            <PulseLoader color="#3B82F6" />
+                        </div>
+                    ) : (
+                        plotData && plotData.data && plotData.layout && (
+                            <div className="mt-6 text-center w-full">
+                                <h3 className="text-lg font-semibold mb-4">📊 Generated Plot</h3>
+                                <div className="w-full h-full bg-white p-4 rounded shadow">
+                                    <ResponsivePlot data={plotData.data} layout={plotData.layout} />
+                                </div>
+                            </div>
+                        )
+                    )}
+                </TabPane>
+
+                <TabPane tab="📁 Saved Plots" key="2">
+                    {savedPlots.length === 0 ? (
+                        <p className="text-gray-500">No plots saved yet.</p>
+                    ) : (
+                        <div className="space-y-6">
+                            {savedPlots.map((plot) => (
+                                <div key={plot._id} className="bg-gray-100 p-4 rounded shadow w-full">
+                                    <h4 className="font-semibold mb-2">{plot.title}</h4>
+                                    <div className="w-full h-full bg-white p-4 rounded">
+                                        <ResponsivePlot data={plot.plot_json?.data} layout={plot.plot_json?.layout} />
+                                    </div>
+                                    <div className="flex justify-end mt-2">
+                                        <Tooltip title="Delete Plot">
+                                            <Button danger onClick={() => handleDeletePlot(plot._id)}>
+                                                Delete
+                                            </Button>
+                                        </Tooltip>
+                                    </div>
+                                </div>
                             ))}
-                        </Select>
-                    </div>
-                )}
-
-                {/* Generate Button */}
-                <div>
-                    <Button
-                        type="primary"
-                        onClick={handleGeneratePlot}
-                        className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600"
-                    >
-                        Generate Plot
-                    </Button>
-                </div>
-
-                {/* Plot Output */}
-                {plotUrl && (
-                    <div className="mt-6 space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Generated Plot:</h3>
-                        <img
-                            src={plotUrl}
-                            alt="EDA Plot"
-                            className="w-full max-w-4xl rounded-lg shadow-lg"
-                        />
-                        <Button
-                            type="primary"
-                            onClick={handleDownload}
-                            className="bg-green-500 text-white px-5 py-2 rounded-lg hover:bg-green-600"
-                        >
-                            Download Plot
-                        </Button>
-                    </div>
-                )}
-            </div>
+                        </div>
+                    )}
+                </TabPane>
+            </Tabs>
         </div>
     );
 };
