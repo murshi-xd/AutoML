@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Select, notification, Tabs, Tooltip } from 'antd';
 import { fetchDatasets, fetchEdaData } from '../useStore/useDatasetController';
 import { generateEdaVisual, savePlot, getSavedPlots, deletePlot } from '../useStore/UseEdaController';
@@ -21,10 +21,13 @@ const Visuals = ({ sidebarOpen }) => {
     const [plotData, setPlotData] = useState(null);
     const [datasetName, setDatasetName] = useState('');
     const [savedPlots, setSavedPlots] = useState([]);
+    const [savedDatasetFilter, setSavedDatasetFilter] = useState('');
     const [loadingPlot, setLoadingPlot] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+    const plotRefs = useRef({});
 
     useEffect(() => {
-        const loadDatasets = async () => {
+        const loadData = async () => {
             if (user?._id) {
                 const data = await fetchDatasets(user._id);
                 setDatasets(Array.isArray(data) ? data : []);
@@ -32,7 +35,7 @@ const Visuals = ({ sidebarOpen }) => {
                 setSavedPlots(saved);
             }
         };
-        loadDatasets();
+        loadData();
     }, [user]);
 
     const handleDatasetSelect = async (datasetId) => {
@@ -46,6 +49,7 @@ const Visuals = ({ sidebarOpen }) => {
             setSelectedColumn('');
             setSelectedColumn2('');
             setPlotData(null);
+            setStatusMessage('');
         } else {
             notification.error({ message: 'Dataset not found or failed to fetch EDA.' });
         }
@@ -53,22 +57,25 @@ const Visuals = ({ sidebarOpen }) => {
 
     const handleGeneratePlot = async () => {
         if (!selectedDataset || !plotType) {
-            return notification.error({ message: 'Select dataset and plot type.' });
+            notification.error({ message: 'Select dataset and plot type.' });
+            return;
         }
 
         setLoadingPlot(true);
-        const response = await generateEdaVisual(
-            selectedDataset,
-            plotType,
-            selectedColumn,
-            selectedColumn2
-        );
+        const response = await generateEdaVisual(selectedDataset, plotType, selectedColumn, selectedColumn2);
         setLoadingPlot(false);
 
-        if (response) {
+        if (response && response.data && response.layout) {
             setPlotData(response);
+            setStatusMessage('');
             notification.success({ message: 'Plot generated!' });
+        } else if (response && response.error) {
+            setPlotData(null);
+            setStatusMessage(response.error);
+            notification.info({ message: response.error });
         } else {
+            setPlotData(null);
+            setStatusMessage('Failed to generate plot.');
             notification.error({ message: 'Failed to generate plot.' });
         }
     };
@@ -90,6 +97,47 @@ const Visuals = ({ sidebarOpen }) => {
             notification.error({ message: 'Failed to save plot.' });
         }
     };
+
+    const handleDeletePlot = async (plotId) => {
+        if (!window.confirm('Delete this plot?')) return;
+        const result = await deletePlot(plotId);
+        if (result?.message) {
+            const saved = await getSavedPlots(user._id);
+            setSavedPlots(saved);
+            notification.success({ message: 'Plot deleted.' });
+        } else {
+            notification.error({ message: 'Failed to delete plot.' });
+        }
+    };
+
+    const handleDownloadPlot = (plot, index) => {
+        const a = document.createElement('a');
+        a.download = `${plot.title || 'plot'}_${index + 1}.json`;
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(plot.plot_json)], { type: 'application/json' }));
+        a.click();
+    };
+
+    // New: Download as image handler
+    const handleDownloadPlotImage = async (plot, idx) => {
+        const ref = plotRefs.current[plot._id];
+        if (ref && ref.getPlotDiv) {
+            const plotDiv = ref.getPlotDiv();
+            if (plotDiv && window.Plotly) {
+                const dataUrl = await window.Plotly.toImage(plotDiv, { format: 'png', height: 600, width: 800 });
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = `${plot.title || 'plot'}_${idx + 1}.png`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    };
+
+    const filteredSavedPlots = savedDatasetFilter
+        ? savedPlots.filter(p => p.dataset_id === savedDatasetFilter)
+        : savedPlots;
 
     return (
         <div className="pt-24 p-6 space-y-6 bg-white shadow-md rounded-xl mx-4 md:mx-8">
@@ -120,7 +168,6 @@ const Visuals = ({ sidebarOpen }) => {
                             ))}
                         </Select>
                     </div>
-
                     {(plotType !== 'heatmap' && plotType !== 'pairplot' && plotType !== 'missing') && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                             {['scatter', 'jointplot'].includes(plotType) ? (
@@ -160,12 +207,15 @@ const Visuals = ({ sidebarOpen }) => {
                             )}
                         </div>
                     )}
-
                     <div className="flex flex-wrap gap-4 mt-4">
                         <Button onClick={handleGeneratePlot} className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">Generate Plot</Button>
                         <Button onClick={handleSavePlot} className="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700">Save Plot</Button>
                     </div>
-
+                    {statusMessage && (
+                        <div className="text-center text-gray-600 font-medium mt-4">
+                            {statusMessage}
+                        </div>
+                    )}
                     {loadingPlot ? (
                         <div className="flex justify-center items-center py-10">
                             <PulseLoader color="#3B82F6" />
@@ -181,27 +231,59 @@ const Visuals = ({ sidebarOpen }) => {
                         )
                     )}
                 </TabPane>
-
                 <TabPane tab="📁 Saved Plots" key="2">
-                    {savedPlots.length === 0 ? (
-                        <p className="text-gray-500">No plots saved yet.</p>
-                    ) : (
-                        <div className="space-y-6">
-                            {savedPlots.map((plot) => (
-                                <div key={plot._id} className="bg-gray-100 p-4 rounded shadow w-full">
-                                    <h4 className="font-semibold mb-2">{plot.title}</h4>
-                                    <div className="w-full h-full bg-white p-4 rounded">
-                                        <ResponsivePlot data={plot.plot_json?.data} layout={plot.plot_json?.layout} />
-                                    </div>
-                                    <div className="flex justify-end mt-2">
-                                        <Tooltip title="Delete Plot">
-                                            <Button danger onClick={() => handleDeletePlot(plot._id)}>
-                                                Delete
-                                            </Button>
-                                        </Tooltip>
-                                    </div>
-                                </div>
+                    <div className="mb-4">
+                        <Select
+                            placeholder="Filter by Dataset"
+                            value={savedDatasetFilter || undefined}
+                            onChange={setSavedDatasetFilter}
+                            allowClear
+                            className="w-full md:w-1/3"
+                        >
+                            {datasets.map(d => (
+                                <Option key={d._id} value={d._id}>{d.custom_name}</Option>
                             ))}
+                        </Select>
+                    </div>
+                    {filteredSavedPlots.length === 0 ? (
+                        <p className="text-gray-500">No plots saved{savedDatasetFilter ? ' for selected dataset' : ''}.</p>
+                    ) : (
+                        <div className="space-y-8">
+                            {[...new Set(filteredSavedPlots.map(p => p.dataset_id))].map(datasetId => {
+                                const datasetName = datasets.find(d => d._id === datasetId)?.custom_name || 'Unknown Dataset';
+                                const plots = filteredSavedPlots.filter(p => p.dataset_id === datasetId);
+                                return (
+                                    <div key={datasetId}>
+                                        <h3 className="text-lg font-bold text-gray-800 mb-2">📂 {datasetName}</h3>
+                                        <div className="space-y-6">
+                                            {plots.map((plot, idx) => (
+                                                <div key={plot._id} className="bg-gray-100 p-4 rounded shadow w-full">
+                                                    <h4 className="font-semibold mb-2">{plot.title}</h4>
+                                                    <div className="w-full h-full bg-white p-4 rounded">
+                                                        <ResponsivePlot
+                                                            ref={el => plotRefs.current[plot._id] = el}
+                                                            data={plot.plot_json?.data}
+                                                            layout={plot.plot_json?.layout}
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-end mt-2 gap-2">
+                                                        <Tooltip title="Download Image">
+                                                            <Button onClick={() => handleDownloadPlotImage(plot, idx)}>
+                                                                Download Image
+                                                            </Button>
+                                                        </Tooltip>
+                                                        <Tooltip title="Delete Plot">
+                                                            <Button danger onClick={() => handleDeletePlot(plot._id)}>
+                                                                Delete
+                                                            </Button>
+                                                        </Tooltip>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </TabPane>

@@ -1,11 +1,16 @@
 # controllers/eda_controller.py
 
-from flask import jsonify, request, session
+from flask import jsonify, request, session, Response
 from datetime import datetime
 from bson import ObjectId
 import os
 import pandas as pd
 import plotly.express as px
+import plotly
+from flask import jsonify, request, session
+from datetime import datetime
+from bson import ObjectId, json_util
+import json
 
 from utils.db import Database
 
@@ -56,44 +61,91 @@ class EDAController:
             fig = None
 
             if plot_type == "histogram":
+                if column not in df:
+                    return jsonify({"error": f"Column '{column}' not found"}), 400
                 fig = px.histogram(df, x=column)
+
             elif plot_type == "boxplot":
+                if column not in df:
+                    return jsonify({"error": f"Column '{column}' not found"}), 400
                 fig = px.box(df, y=column)
+
             elif plot_type == "heatmap":
-                fig = px.imshow(df.corr(numeric_only=True))
+                numeric_df = df.select_dtypes(include="number")
+                if numeric_df.shape[1] < 2:
+                    return jsonify({"error": "Not enough numeric columns for heatmap"}), 400
+                fig = px.imshow(numeric_df.corr())
+
             elif plot_type == "missing":
                 na_series = df.isnull().sum()
                 na_series = na_series[na_series > 0]
+
+                if na_series.empty:
+                    return jsonify({"error": "No missing values found in dataset"}), 400
+
+                # Sort missing values descending
+                na_series = na_series.sort_values(ascending=True)
+
+                x_vals = [int(v) for v in na_series.values]
+                y_labels = [str(k) for k in na_series.index]
+
                 fig = px.bar(
-                    x=na_series.values, 
-                    y=na_series.index, 
+                    x=x_vals,
+                    y=y_labels,
                     orientation='h',
-                    labels={"x": "Missing Count", "y": "Feature"}
+                    labels={"x": "Missing Count", "y": "Feature"},
+                    title="Missing Values"
                 )
+
             elif plot_type == "scatter":
+                if column not in df or column2 not in df:
+                    return jsonify({"error": "Both columns must be selected"}), 400
                 fig = px.scatter(df, x=column, y=column2)
+
             elif plot_type == "correlation_top_n":
                 corr = df.corr(numeric_only=True)
-                if column not in corr:
+                if column not in corr.columns:
                     return jsonify({"error": f"{column} not found in correlation matrix"}), 400
-                top_corr = corr[column].abs().sort_values(ascending=False)[1:top_n + 1]
+                top_corr = corr[column].drop(column).abs().sort_values(ascending=False).head(top_n)
                 fig = px.bar(
-                    x=top_corr.values, 
-                    y=top_corr.index, 
+                    x=top_corr.values,
+                    y=top_corr.index,
                     orientation='h',
                     labels={"x": "Correlation", "y": "Feature"}
                 )
+
             elif plot_type == "category_distribution":
-                fig = px.histogram(df, x=column)
+                if column not in df:
+                    return jsonify({"error": f"Column '{column}' not found"}), 400
+                fig = px.histogram(df, x=column, color=column)
+
             elif plot_type == "violin":
-                fig = px.violin(df, y=column)
+                if column not in df:
+                    return jsonify({"error": f"Column '{column}' not found"}), 400
+                fig = px.violin(df, y=column, box=True, points="all")
+
+            elif plot_type == "pairplot":
+                num_cols = df.select_dtypes(include="number").columns.tolist()
+                if len(num_cols) < 2:
+                    return jsonify({"error": "Not enough numeric columns for pairplot"}), 400
+                fig = px.scatter_matrix(df, dimensions=num_cols[:5])
+
+            elif plot_type == "jointplot":
+                if column not in df or column2 not in df:
+                    return jsonify({"error": "Both columns must be selected for jointplot"}), 400
+                fig = px.density_contour(df, x=column, y=column2)
+
             else:
                 return jsonify({"error": f"Unsupported plot type: {plot_type}"}), 400
 
             fig.update_layout(title=f"{plot_type.replace('_', ' ').title()} Plot")
-            return jsonify(fig.to_plotly_json()), 200
-
+            return Response(
+                plotly.utils.PlotlyJSONEncoder().encode(fig.to_plotly_json()),
+                mimetype='application/json'
+            ), 200
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": f"Plot generation failed: {str(e)}"}), 500
 
     def save_plot(self):
@@ -105,8 +157,14 @@ class EDAController:
             return jsonify({"error": "User not logged in"}), 401
 
         required_fields = ["dataset_id", "plot_type", "plot_json"]
-        if not all(field in data for field in required_fields):
-            return jsonify({"error": "Missing required fields"}), 400
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+
+        try:
+            plot_json = json.loads(json_util.dumps(data["plot_json"]))
+        except Exception as e:
+            return jsonify({"error": f"Failed to sanitize plot JSON: {str(e)}"}), 500
 
         plot_data = {
             "user_id": ObjectId(user_id),
@@ -114,7 +172,7 @@ class EDAController:
             "plot_type": data["plot_type"],
             "columns": data.get("columns", []),
             "title": data.get("title", ""),
-            "plot_json": data["plot_json"],
+            "plot_json": plot_json,
             "created_at": datetime.utcnow()
         }
 

@@ -1,25 +1,30 @@
 // src/components/ResponsivePlot.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, forwardRef } from 'react';
 import Plot from 'react-plotly.js';
 import Plotly from 'plotly.js-dist-min';
 
-const ResponsivePlot = ({ data, layout = {}, config = {}, className = '' }) => {
-  const plotRef = useRef();
+const ResponsivePlot = forwardRef(({ data, layout = {}, config = {}, className = '' }, ref) => {
+  const plotDivRef = useRef();
 
   useEffect(() => {
-    if (!plotRef.current) return;
+    if (!plotDivRef.current) return;
 
-    const resize = () => Plotly.Plots.resize(plotRef.current);
+    const resize = () => Plotly.Plots.resize(plotDivRef.current);
     const observer = new ResizeObserver(resize);
-    observer.observe(plotRef.current);
+    observer.observe(plotDivRef.current);
     setTimeout(resize, 300); // fallback for delayed layouts
 
     return () => observer.disconnect();
   }, []);
 
+  // Expose the plot div to parent via ref
+  React.useImperativeHandle(ref, () => ({
+    getPlotDiv: () => plotDivRef.current?.querySelector('.js-plotly-plot')
+  }));
+
   return (
-    <div ref={plotRef} className={`w-full ${className}`}>
-      <div className="aspect-[4/3]">
+    <div className={`w-full ${className}`}>
+      <div className="aspect-[4/3]" ref={plotDivRef}>
         <Plot
           data={data}
           layout={{
@@ -35,6 +40,6 @@ const ResponsivePlot = ({ data, layout = {}, config = {}, className = '' }) => {
       </div>
     </div>
   );
-};
+});
 
 export default ResponsivePlot;
