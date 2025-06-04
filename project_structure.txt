@@ -1,0 +1,82 @@
+.
+├── LICENSE
+├── backend
+│   ├── app.py
+│   ├── backend
+│   │   └── extracted_data
+│   ├── controllers
+│   │   ├── auth_controller.py
+│   │   ├── dataset_controller.py
+│   │   ├── eda_controller.py
+│   │   ├── pipeline_controller.py
+│   │   ├── plot_controller.py
+│   │   └── upload_controller.py
+│   ├── core
+│   │   ├── data
+│   │   ├── explanations
+│   │   ├── mlruns
+│   │   ├── pipelines
+│   │   ├── src
+│   │   └── steps
+│   ├── flask_session
+│   │   ├── 03c26255a8607cdea46bad294cd723f0
+│   │   └── 2029240f6d1128be89ddc32729463129
+│   ├── mlruns
+│   │   └── models
+│   ├── requirements.txt
+│   ├── routes
+│   │   ├── auth_routes.py
+│   │   ├── config.py
+│   │   ├── dashboard.py
+│   │   ├── dataset_routes.py
+│   │   ├── eda_routes.py
+│   │   ├── mlflow.py
+│   │   ├── model.py
+│   │   ├── pipeline.py
+│   │   └── upload_routes.py
+│   ├── tests
+│   │   ├── __init__.py
+│   │   ├── test_data
+│   │   ├── test_eda_routes.py
+│   │   ├── test_mongodb_connection.py
+│   │   └── test_upload.py
+│   ├── uploads
+│   │   ├── 682f9799a1b54a8288e62eb1
+│   │   ├── 682f9854c76894d180102343
+│   │   ├── 682f9889dc8bc4139534fa71
+│   │   ├── default_user
+│   │   ├── test_123
+│   │   ├── test_333
+│   │   ├── test_666
+│   │   └── user_123
+│   └── utils
+│       ├── db.py
+│       ├── eda_utils.py
+│       ├── mongo_utils.py
+│       └── oauth_client.py
+├── frontend
+│   ├── README.md
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── public
+│   │   └── vite.svg
+│   ├── src
+│   │   ├── App.jsx
+│   │   ├── assets
+│   │   ├── components
+│   │   ├── context
+│   │   ├── index.css
+│   │   ├── lib
+│   │   ├── main.jsx
+│   │   ├── pages
+│   │   └── useStore
+│   ├── tailwind.config.js
+│   └── vite.config.js
+├── output.txt
+├── project_structure.txt
+└── read.me
+
+37 directories, 43 files
